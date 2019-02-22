@@ -44,6 +44,8 @@ typedef struct {
      pid_t    pid;
   status_t status;
      ctx_t    ctx;
+     char priority;
+     char age;
 } pcb_t;
 
 #endif

@@ -6,18 +6,12 @@
  */
 
 #include "hilevel.h"
+#define PCBSIZE 3
+/*
+PCBsize is defined here as a constant.
+*/
 
-/* We assume there will be 2 user processes, stemming from the 2 user programs, 
- * and so can 
- * 
- * - allocate a fixed-size process table (of PCBs), and then maintain an index 
- *   into it to keep track of the currently executing process, and
- * - employ a fixed-case of round-robin scheduling: no more processes can be 
- *   created, and neither can be terminated, so assume both are always ready
- *   to execute.
- */
-
-pcb_t pcb[ 2 ]; pcb_t* current = NULL;
+pcb_t pcb[ PCBSIZE ]; pcb_t* current = NULL;
 
 void dispatch( ctx_t* ctx, pcb_t* prev, pcb_t* next ) {
   char prev_pid = '?', next_pid = '?';
@@ -45,6 +39,31 @@ void dispatch( ctx_t* ctx, pcb_t* prev, pcb_t* next ) {
 }
 
 void schedule( ctx_t* ctx ) {
+
+  char max = 0;
+  char maxi = 0;
+  char previ;
+  for (int i = 0; i<PCBSIZE; i++){
+    if (current->pid == pcb[i].pid){
+      previ = i;
+    }
+    if (pcb[i].priority + pcb[i].age > max){
+      max = pcb[i].priority + pcb[i].age;
+      maxi = i;
+    }
+    else{
+      pcb[i].age++;
+    }
+  }
+  //If they are the same, The current progress still has max priority
+  if (maxi == previ){return;}
+
+  pcb[maxi].age = 0;
+  dispatch(ctx, &pcb[previ], &pcb[maxi]); //Context switch from previous state to the next 
+  pcb[previ].status = STATUS_READY;
+  pcb[maxi].status = STATUS_EXECUTING;
+  return;
+  /*
   if     ( current->pid == pcb[ 0 ].pid ) {
     dispatch( ctx, &pcb[ 0 ], &pcb[ 1 ] );      // context switch P_1 -> P_2
 
@@ -57,14 +76,15 @@ void schedule( ctx_t* ctx ) {
     pcb[ 1 ].status = STATUS_READY;             // update   execution status  of P_2
     pcb[ 0 ].status = STATUS_EXECUTING;         // update   execution status  of P_1
   }
-
-  return;
+*/
 }
 
 extern void     main_P3(); 
 extern uint32_t tos_P3;
 extern void     main_P4(); 
 extern uint32_t tos_P4;
+extern void     main_P6();
+extern uint32_t tos_P6;
 
 void hilevel_handler_rst(ctx_t* ctx) {
 
@@ -73,22 +93,39 @@ void hilevel_handler_rst(ctx_t* ctx) {
    *    
    * - the CPSR value of 0x50 means the processor is switched into USR mode, 
    *   with IRQ interrupts enabled, and
-   * - the PC and SP values matche the entry point and top of stack. 
+   * - the PC and SP values match the entry point and top of stack. 
    */
 
-  memset( &pcb[ 0 ], 0, sizeof( pcb_t ) );     // initialise 0-th PCB = P_1
+  memset( &pcb[ 0 ], 0, sizeof( pcb_t ) );     // initialise 0-th PCB = P_3
   pcb[ 0 ].pid      = 1;
   pcb[ 0 ].status   = STATUS_CREATED;
   pcb[ 0 ].ctx.cpsr = 0x50;
   pcb[ 0 ].ctx.pc   = ( uint32_t )( &main_P3 );
   pcb[ 0 ].ctx.sp   = ( uint32_t )( &tos_P3  );
+  pcb[ 0 ].priority = 0;
+  pcb[ 0 ].age      = 0;
 
-  memset( &pcb[ 1 ], 0, sizeof( pcb_t ) );     // initialise 1-st PCB = P_2
+
+
+  memset( &pcb[ 1 ], 0, sizeof( pcb_t ) );     // initialise 2-nd PCB = P_4
   pcb[ 1 ].pid      = 2;
   pcb[ 1 ].status   = STATUS_CREATED;
   pcb[ 1 ].ctx.cpsr = 0x50;
   pcb[ 1 ].ctx.pc   = ( uint32_t )( &main_P4 );
   pcb[ 1 ].ctx.sp   = ( uint32_t )( &tos_P4  );
+  pcb[ 1 ].priority = 0;
+  pcb[ 1 ].age      = 0;
+
+  memset( &pcb[ 2 ], 0, sizeof( pcb_t ) );     // initialise 3-rd PCB = P_5
+  pcb[ 2 ].pid      = 3;
+  pcb[ 2 ].status   = STATUS_CREATED;
+  pcb[ 2 ].ctx.cpsr = 0x50;
+  pcb[ 2 ].ctx.pc   = ( uint32_t )( &main_P6 );
+  pcb[ 2 ].ctx.sp   = ( uint32_t )( &tos_P6 );
+  pcb[ 2 ].priority = 0;
+  pcb[ 2 ].age      = 0;
+
+
 
   /* Configure the mechanism for interrupt handling by
    *

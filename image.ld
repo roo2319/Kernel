@@ -23,9 +23,12 @@ SECTIONS {
   .       = . + 0x00001000;  
   tos_svc = .;
   /* allocate stack for P3           */
-  .       = . + 0x00001000;  
+  .       = . + 0x00010000;  
   tos_P3  = .;
   /* allocate stack for P4           */
-  .       = . + 0x00001000;  
+  .       = . + 0x00010000;  
   tos_P4  = .;
+  /* allocate stack for P6           */
+  .       = . + 0x00010000;  
+  tos_P6  = .;
 }
