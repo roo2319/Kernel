@@ -6,12 +6,11 @@
  */
 
 #include "hilevel.h"
-#define PCBSIZE 3
-/*
-PCBsize is defined here as a constant.
-*/
 
-pcb_t pcb[ PCBSIZE ]; pcb_t* current = NULL;
+
+char procs = 1; pcb_t pcb[ 20 ]; pcb_t* current = NULL;char nextpid = 1;  
+
+
 
 void dispatch( ctx_t* ctx, pcb_t* prev, pcb_t* next ) {
   char prev_pid = '?', next_pid = '?';
@@ -25,14 +24,6 @@ void dispatch( ctx_t* ctx, pcb_t* prev, pcb_t* next ) {
     next_pid = '0' + next->pid;
   }
 
-    /*
-    PL011_putc( UART0, '[',      true );
-    PL011_putc( UART0, prev_pid, true );
-    PL011_putc( UART0, '-',      true );
-    PL011_putc( UART0, '>',      true );
-    PL011_putc( UART0, next_pid, true );
-    PL011_putc( UART0, ']',      true );
-    */
     current = next;                             // update   executing index   to P_{next}
 
   return;
@@ -43,7 +34,7 @@ void schedule( ctx_t* ctx ) {
   char max = 0;
   char maxi = 0;
   char previ;
-  for (int i = 0; i<PCBSIZE; i++){
+  for (int i = 0; i<procs; i++){
     if (current->pid == pcb[i].pid){
       previ = i;
     }
@@ -51,7 +42,9 @@ void schedule( ctx_t* ctx ) {
       max = pcb[i].priority + pcb[i].age;
       maxi = i;
     }
-    else{
+  }
+  for (int i = 0; i<procs; i++){
+    if (i != maxi){
       pcb[i].age++;
     }
   }
@@ -63,20 +56,6 @@ void schedule( ctx_t* ctx ) {
   pcb[previ].status = STATUS_READY;
   pcb[maxi].status = STATUS_EXECUTING;
   return;
-  /*
-  if     ( current->pid == pcb[ 0 ].pid ) {
-    dispatch( ctx, &pcb[ 0 ], &pcb[ 1 ] );      // context switch P_1 -> P_2
-
-    pcb[ 0 ].status = STATUS_READY;             // update   execution status  of P_1 
-    pcb[ 1 ].status = STATUS_EXECUTING;         // update   execution status  of P_2
-  }
-  else if( current->pid == pcb[ 1 ].pid ) {
-    dispatch( ctx, &pcb[ 1 ], &pcb[ 0 ] );      // context switch P_2 -> P_1
-
-    pcb[ 1 ].status = STATUS_READY;             // update   execution status  of P_2
-    pcb[ 0 ].status = STATUS_EXECUTING;         // update   execution status  of P_1
-  }
-*/
 }
 
 extern void     main_P3(); 
@@ -85,6 +64,8 @@ extern void     main_P4();
 extern uint32_t tos_P4;
 extern void     main_P6();
 extern uint32_t tos_P6;
+extern void     main_console();
+extern uint32_t tos_console;
 
 void hilevel_handler_rst(ctx_t* ctx) {
 
@@ -96,34 +77,15 @@ void hilevel_handler_rst(ctx_t* ctx) {
    * - the PC and SP values match the entry point and top of stack. 
    */
 
-  memset( &pcb[ 0 ], 0, sizeof( pcb_t ) );     // initialise 0-th PCB = P_3
+
+  memset( &pcb[ 0 ], 0, sizeof( pcb_t ) );     // initialise Console
   pcb[ 0 ].pid      = 1;
   pcb[ 0 ].status   = STATUS_CREATED;
   pcb[ 0 ].ctx.cpsr = 0x50;
-  pcb[ 0 ].ctx.pc   = ( uint32_t )( &main_P3 );
-  pcb[ 0 ].ctx.sp   = ( uint32_t )( &tos_P3  );
+  pcb[ 0 ].ctx.pc   = ( uint32_t )( &main_console );
+  pcb[ 0 ].ctx.sp   = ( uint32_t )( &tos_console );
   pcb[ 0 ].priority = 0;
   pcb[ 0 ].age      = 0;
-
-
-
-  memset( &pcb[ 1 ], 0, sizeof( pcb_t ) );     // initialise 2-nd PCB = P_4
-  pcb[ 1 ].pid      = 2;
-  pcb[ 1 ].status   = STATUS_CREATED;
-  pcb[ 1 ].ctx.cpsr = 0x50;
-  pcb[ 1 ].ctx.pc   = ( uint32_t )( &main_P4 );
-  pcb[ 1 ].ctx.sp   = ( uint32_t )( &tos_P4  );
-  pcb[ 1 ].priority = 0;
-  pcb[ 1 ].age      = 0;
-
-  memset( &pcb[ 2 ], 0, sizeof( pcb_t ) );     // initialise 3-rd PCB = P_5
-  pcb[ 2 ].pid      = 3;
-  pcb[ 2 ].status   = STATUS_CREATED;
-  pcb[ 2 ].ctx.cpsr = 0x50;
-  pcb[ 2 ].ctx.pc   = ( uint32_t )( &main_P6 );
-  pcb[ 2 ].ctx.sp   = ( uint32_t )( &tos_P6 );
-  pcb[ 2 ].priority = 0;
-  pcb[ 2 ].age      = 0;
 
 
 
@@ -187,6 +149,47 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       ctx->gpr[ 0 ] = n;
 
       break;
+    }
+
+    case 0x03 : { //0x03 => Fork()
+      procs++;
+      pid_t currentpid = current->pid;
+      //realloc(pcb,sizeof(pcb_t) * procs);
+      memset( &pcb[ procs-1 ], 0, sizeof( pcb_t ) );     // initialise 0-th PCB = P_3
+      pcb[ procs-1 ].pid      = nextpid;
+      nextpid++;
+      pcb[ procs-1 ].status   = STATUS_CREATED;
+      pcb[ procs-1 ].priority = current->priority;
+      pcb[ procs-1 ].age      = current->age;
+      memcpy(&pcb[procs-1].ctx,ctx,sizeof(ctx_t));
+      ctx->gpr[0] = currentpid == current->pid;
+    }
+
+    case 0x04 : { //0x04 => Exit() 
+      break;
+    }
+
+    case 0x05 : { //0x05 => Exec(Const void* x)
+      ctx->lr = (uint32_t)(ctx->gpr[0]);
+      break;
+    }
+
+    case 0x06 : { //0x06 => Kill(pid, id)
+    pid_t pid = (pid_t) ctx->gpr[0];
+    int x = ctx->gpr[1];
+    for (int i = 0; i<procs; i++){
+      if (pcb[i].pid == pid && i != (procs - 1)){
+        pcb[pid] = pcb[i];
+        procs--;
+        break;
+      }
+      else{if (pcb[i].pid == pid){procs--;break;}}
+    }
+      break;
+    }
+
+    case 0x07 : { //0x07 => Nice()
+      break; 
     }
 
     default   : { // 0x?? => unknown/unsupported
