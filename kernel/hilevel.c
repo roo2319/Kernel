@@ -8,20 +8,17 @@
 #include "hilevel.h"
 
 
-char procs = 1; pcb_t pcb[ 20 ]; pcb_t* current = NULL;char nextpid = 1;  
+char procs = 1; pcb_t pcb[ 20 ]; pcb_t* current = NULL;char nextpid = 2;  
 
 
 
 void dispatch( ctx_t* ctx, pcb_t* prev, pcb_t* next ) {
-  char prev_pid = '?', next_pid = '?';
 
   if( NULL != prev ) {
     memcpy( &prev->ctx, ctx, sizeof( ctx_t ) ); // preserve execution context of P_{prev}
-    prev_pid = '0' + prev->pid;
   }
   if( NULL != next ) {
     memcpy( ctx, &next->ctx, sizeof( ctx_t ) ); // restore  execution context of P_{next}
-    next_pid = '0' + next->pid;
   }
 
     current = next;                             // update   executing index   to P_{next}
@@ -153,16 +150,18 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
 
     case 0x03 : { //0x03 => Fork()
       procs++;
-      pid_t currentpid = current->pid;
       //realloc(pcb,sizeof(pcb_t) * procs);
-      memset( &pcb[ procs-1 ], 0, sizeof( pcb_t ) );     // initialise 0-th PCB = P_3
+      memset( &pcb[ procs-1 ], 0, sizeof( pcb_t ) );   
       pcb[ procs-1 ].pid      = nextpid;
       nextpid++;
       pcb[ procs-1 ].status   = STATUS_CREATED;
       pcb[ procs-1 ].priority = current->priority;
       pcb[ procs-1 ].age      = current->age;
       memcpy(&pcb[procs-1].ctx,ctx,sizeof(ctx_t));
-      ctx->gpr[0] = currentpid == current->pid;
+      pcb[ procs-1 ].ctx.gpr[0] = 0;
+      ctx->gpr[0] = current->pid;
+      ctx->sp += 0x1000;
+      break;
     }
 
     case 0x04 : { //0x04 => Exit() 
@@ -179,7 +178,7 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     int x = ctx->gpr[1];
     for (int i = 0; i<procs; i++){
       if (pcb[i].pid == pid && i != (procs - 1)){
-        pcb[pid] = pcb[i];
+        pcb[procs - 1] = pcb[i];
         procs--;
         break;
       }
