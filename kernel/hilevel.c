@@ -178,7 +178,7 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     int x = ctx->gpr[1];
     for (int i = 0; i<procs; i++){
       if (pcb[i].pid == pid && i != (procs - 1)){
-        pcb[procs - 1] = pcb[i];
+        memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
         procs--;
         break;
       }
