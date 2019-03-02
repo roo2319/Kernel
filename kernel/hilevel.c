@@ -192,7 +192,7 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       memcpy(&pcb[procs].ctx,ctx,sizeof(ctx_t));
       pcb[ procs ].tos      = (uint32_t) (&tos_console - (nextpid * 0x1000));
       pcb[ procs ].ctx.sp   = current->ctx.sp - (nextpid * 0x1000);
-      memcpy(pcb[procs].ctx.sp,(current->ctx.sp),current->tos - current->ctx.sp);
+      memcpy((void*) pcb[procs].ctx.sp,(void *) current->ctx.sp,current->tos - current->ctx.sp);
       nextpid++;
       procs++; 
       pcb[ procs ].ctx.gpr[0] = 0;
