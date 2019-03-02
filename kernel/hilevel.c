@@ -10,7 +10,42 @@
 
 char procs = 1; pcb_t pcb[ 20 ]; pcb_t* current = NULL;char nextpid = 2;  
 
+void itoa_k( char* r, int x ) {
+  char* p = r; int t, n;
 
+  if( x < 0 ) {
+     p++; t = -x; n = t;
+  }
+  else {
+          t = +x; n = t;
+  }
+
+  do {
+     p++;                    n /= 10;
+  } while( n );
+
+    *p-- = '\x00';
+
+  do {
+    *p-- = '0' + ( t % 10 ); t /= 10;
+  } while( t );
+
+  if( x < 0 ) {
+    *p-- = '-';
+  }
+
+  return;
+}
+
+void print(char* s){
+  char ind = 0;
+  char c = s[0];
+  while (c != '\0'){
+    PL011_putc(UART0,c,true);
+    ind++;
+    c=s[ind];
+  }
+}
 
 void dispatch( ctx_t* ctx, pcb_t* prev, pcb_t* next ) {
 
@@ -20,8 +55,8 @@ void dispatch( ctx_t* ctx, pcb_t* prev, pcb_t* next ) {
   if( NULL != next ) {
     memcpy( ctx, &next->ctx, sizeof( ctx_t ) ); // restore  execution context of P_{next}
   }
-
     current = next;                             // update   executing index   to P_{next}
+    PL011_putc(UART0,'\n',true);
 
   return;
 }
@@ -55,14 +90,12 @@ void schedule( ctx_t* ctx ) {
   return;
 }
 
-extern void     main_P3(); 
-extern uint32_t tos_P3;
-extern void     main_P4(); 
-extern uint32_t tos_P4;
-extern void     main_P6();
-extern uint32_t tos_P6;
 extern void     main_console();
 extern uint32_t tos_console;
+
+//Copy from top -1000 to top for 1000 bytes 
+
+
 
 void hilevel_handler_rst(ctx_t* ctx) {
 
@@ -81,6 +114,7 @@ void hilevel_handler_rst(ctx_t* ctx) {
   pcb[ 0 ].ctx.cpsr = 0x50;
   pcb[ 0 ].ctx.pc   = ( uint32_t )( &main_console );
   pcb[ 0 ].ctx.sp   = ( uint32_t )( &tos_console );
+  pcb[ 0 ].tos      = ( uint32_t )( &tos_console );
   pcb[ 0 ].priority = 0;
   pcb[ 0 ].age      = 0;
 
@@ -149,24 +183,50 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     }
 
     case 0x03 : { //0x03 => Fork()
-      procs++;
       //realloc(pcb,sizeof(pcb_t) * procs);
-      memset( &pcb[ procs-1 ], 0, sizeof( pcb_t ) );   
-      pcb[ procs-1 ].pid      = nextpid;
+      memset( &pcb[ procs ], 0, sizeof( pcb_t ) );   
+      pcb[ procs ].pid      = nextpid;
+      pcb[ procs ].status   = STATUS_CREATED;
+      pcb[ procs ].priority = current->priority;
+      pcb[ procs ].age      = current->age;
+      memcpy(&pcb[procs].ctx,ctx,sizeof(ctx_t));
+      pcb[ procs ].tos      = (uint32_t) (&tos_console - (nextpid * 0x1000));
+      pcb[ procs ].ctx.sp   = current->ctx.sp - (nextpid * 0x1000);
+      memcpy(pcb[procs].ctx.sp,(current->ctx.sp),current->tos - current->ctx.sp);
       nextpid++;
-      pcb[ procs-1 ].status   = STATUS_CREATED;
-      pcb[ procs-1 ].priority = current->priority;
-      pcb[ procs-1 ].age      = current->age;
-      memcpy(&pcb[procs-1].ctx,ctx,sizeof(ctx_t));
-      pcb[ procs-1 ].ctx.gpr[0] = 0;
+      procs++; 
+      pcb[ procs ].ctx.gpr[0] = 0;
+      
       ctx->gpr[0] = current->pid;
-      ctx->sp += 0x1000;
       break;
     }
 
-    case 0x04 : { //0x04 => Exit() 
+    case 0x04 : { //0x04 => Exit()
+      char out[2];
+      pid_t pid = current->pid;
+      itoa_k(out, pid);
+      for (int i = 0; i<procs; i++){
+      if ((pcb[i].pid == pid) && (i != (procs - 1))){
+        memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
+        memset(&pcb[procs-1],0,sizeof(pcb_t));
+        procs--;
+        print("\nIntermediate terminated process ");
+        print(out);
+        dispatch(ctx, NULL, &pcb[0]);
+        return;
+      }
+      else{if (pcb[i].pid == pid){
+        memset(&pcb[procs-1],0,sizeof(pcb_t));
+        procs--;
+        print("\nFinally terminated ");
+        print(out); 
+        dispatch(ctx, NULL, &pcb[0]);
+        return;}}
+      }
+      print("\nNothing was terminated\n");
       break;
     }
+       
 
     case 0x05 : { //0x05 => Exec(Const void* x)
       ctx->lr = (uint32_t)(ctx->gpr[0]);
@@ -174,16 +234,29 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     }
 
     case 0x06 : { //0x06 => Kill(pid, id)
+    char out[2];
     pid_t pid = (pid_t) ctx->gpr[0];
+    itoa_k(out, pid);
     int x = ctx->gpr[1];
     for (int i = 0; i<procs; i++){
-      if (pcb[i].pid == pid && i != (procs - 1)){
+      if ((pcb[i].pid == pid) && (i != (procs - 1))){
         memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
+        memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
-        break;
+        print("\nIntermediate terminated process ");
+        print(out);
+        PL011_putc(UART0,'\n',true); 
+        return;
       }
-      else{if (pcb[i].pid == pid){procs--;break;}}
+      else{if (pcb[i].pid == pid){
+        memset(&pcb[procs-1],0,sizeof(pcb_t));
+        procs--;
+        print("\nFinally terminated ");
+        print(out);
+        PL011_putc(UART0,'\n',true); 
+        return;}}
     }
+    print("No process was terminated");
       break;
     }
 

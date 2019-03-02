@@ -29,6 +29,7 @@
 typedef int pid_t;
 
 typedef enum { 
+  STATUS_EMPTY,
   STATUS_CREATED,
   STATUS_READY,
   STATUS_EXECUTING,
@@ -44,6 +45,7 @@ typedef struct {
      pid_t    pid;
   status_t status;
      ctx_t    ctx;
+     uint32_t tos;
      char priority;
      char age;
 } pcb_t;
