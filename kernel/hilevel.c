@@ -202,28 +202,28 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     }
 
     case 0x04 : { //0x04 => Exit()
-      char out[2];
       pid_t pid = current->pid;
-      itoa_k(out, pid);
+      char code[2]; 
+      itoa_k(code,ctx->gpr[0]);
       for (int i = 0; i<procs; i++){
       if ((pcb[i].pid == pid) && (i != (procs - 1))){
         memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
         memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
-        print("\nIntermediate terminated process ");
-        print(out);
+        print("\nExited with exit code ");
+        print(code);
         dispatch(ctx, NULL, &pcb[0]);
         return;
       }
       else{if (pcb[i].pid == pid){
         memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
-        print("\nFinally terminated ");
-        print(out); 
+        print("\nExited with exit code ");
+        print(code);
         dispatch(ctx, NULL, &pcb[0]);
         return;}}
       }
-      print("\nNothing was terminated\n");
+      print("\nExit failed\n");
       break;
     }
        
@@ -233,17 +233,35 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       break;
     }
 
+
+    //Note that you cannot terminate the terminal process, 
     case 0x06 : { //0x06 => Kill(pid, id)
     char out[2];
     pid_t pid = (pid_t) ctx->gpr[0];
     itoa_k(out, pid);
     int x = ctx->gpr[1];
+    if (pid == 1){
+      memcpy(&pcb[0],&pcb[procs-1],sizeof(pcb_t));
+      memset(&pcb[procs-1],0,sizeof(pcb_t));
+      procs--;
+      if (procs != 0){
+        dispatch(ctx, NULL, &pcb[0]); 
+        print("\nTerminated Console\n");
+      }
+      else{
+        print("\nTerminated Console\n");
+        while(true){}
+        }
+        
+      return;
+      }
+
     for (int i = 0; i<procs; i++){
       if ((pcb[i].pid == pid) && (i != (procs - 1))){
         memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
         memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
-        print("\nIntermediate terminated process ");
+        print("\nTerminated process ");
         print(out);
         PL011_putc(UART0,'\n',true); 
         return;
@@ -251,7 +269,7 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       else{if (pcb[i].pid == pid){
         memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
-        print("\nFinally terminated ");
+        print("\nTerminated process ");
         print(out);
         PL011_putc(UART0,'\n',true); 
         return;}}
