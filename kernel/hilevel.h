@@ -43,6 +43,7 @@ typedef struct {
 
 typedef struct {
      pid_t    pid;
+     pid_t parent;
   status_t status;
      ctx_t    ctx;
      uint32_t tos;

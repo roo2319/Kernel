@@ -147,3 +147,27 @@ void nice( int pid, int x ) {
 
   return;
 }
+
+void sem_post(void* sem){
+ asm volatile("sem_post: ldrex  r1, [ r0 ]\n"       
+                  "          add    r1, r1, #1\n"       
+                  "          strex r2, r1, [ r0 ]\n"    
+                  "          cmp    r2, #0\n"            
+                  "          bne    sem_post\n"          
+                  "          dmb\n");
+  return;
+}
+
+void sem_wait(void* sem){
+  asm volatile("sem_wait: ldrex  r1, [ r0 ]\n"
+                   "          cmp    r1, #0 \n"
+                   "          beq    sem_wait\n"
+                   "          sub    r1, r1, #1\n"
+                   "          strex r2, r1, [ r0 ]\n"
+                   "          cmp    r2, #0\n"
+                   "          bne    sem_wait\n"
+                   "          dmb   \n");         
+  return;
+}
+
+

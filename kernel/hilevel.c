@@ -110,6 +110,7 @@ void hilevel_handler_rst(ctx_t* ctx) {
 
   memset( &pcb[ 0 ], 0, sizeof( pcb_t ) );     // initialise Console
   pcb[ 0 ].pid      = 1;
+  pcb[ 0 ].parent   = -1;
   pcb[ 0 ].status   = STATUS_CREATED;
   pcb[ 0 ].ctx.cpsr = 0x50;
   pcb[ 0 ].ctx.pc   = ( uint32_t )( &main_console );
@@ -168,6 +169,13 @@ void hilevel_handler_irq(ctx_t* ctx) {
 
 void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
   switch( id ){
+
+    case 0x00 : {// 0x00 => yield()
+      schedule( ctx );
+
+      break;
+    }
+
     case 0x01 : { // 0x01 => write( fd, x, n )
       int   fd = ( int   )( ctx->gpr[ 0 ] );  
       char*  x = ( char* )( ctx->gpr[ 1 ] );  
@@ -186,6 +194,7 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       //realloc(pcb,sizeof(pcb_t) * procs);
       memset( &pcb[ procs ], 0, sizeof( pcb_t ) );   
       pcb[ procs ].pid      = nextpid;
+      pcb[ procs ].parent   = current->pid;
       pcb[ procs ].status   = STATUS_CREATED;
       pcb[ procs ].priority = current->priority;
       pcb[ procs ].age      = current->age;
@@ -193,53 +202,67 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       pcb[ procs ].tos      = (uint32_t) (&tos_console - (nextpid * 0x1000));
       pcb[ procs ].ctx.sp   = current->ctx.sp - (nextpid * 0x1000);
       memcpy((void*) pcb[procs].ctx.sp,(void *) current->ctx.sp,current->tos - current->ctx.sp);
+      pcb[ procs ].ctx.gpr[0] = 0;
+
+      //Increment nextpid and size of procs table
       nextpid++;
       procs++; 
-      pcb[ procs ].ctx.gpr[0] = 0;
-      
-      ctx->gpr[0] = current->pid;
+
+      ctx->gpr[0] = nextpid-1;
       break;
     }
 
     case 0x04 : { //0x04 => Exit()
       pid_t pid = current->pid;
-      char code[2]; 
+      char code[3]; 
       itoa_k(code,ctx->gpr[0]);
       for (int i = 0; i<procs; i++){
       if ((pcb[i].pid == pid) && (i != (procs - 1))){
         memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
         memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
-        print("\nExited with exit code ");
-        print(code);
-        dispatch(ctx, NULL, &pcb[0]);
-        return;
+        break;
       }
-      else{if (pcb[i].pid == pid){
-        memset(&pcb[procs-1],0,sizeof(pcb_t));
-        procs--;
-        print("\nExited with exit code ");
-        print(code);
-        dispatch(ctx, NULL, &pcb[0]);
-        return;}}
+      else{
+        if (pcb[i].pid == pid){
+          memset(&pcb[procs-1],0,sizeof(pcb_t));
+          procs--;
+          break;
+          }
+        }
       }
-      print("\nExit failed\n");
+      if (ctx->gpr[0] == 255){
+        print("Failed to start program");
+        dispatch(ctx,NULL,&pcb[0]);
+        break;
+      }
+      print("\nExited with exit code ");
+      print(code);
+      dispatch(ctx, NULL, &pcb[0]);
       break;
     }
        
 
     case 0x05 : { //0x05 => Exec(Const void* x)
-      ctx->lr = (uint32_t)(ctx->gpr[0]);
+      if (ctx->gpr[0] != (uint32_t) NULL){
+        ctx->lr = (uint32_t)(ctx->gpr[0]);
+        ctx->sp = current->pid*0x1000;
+        return;
+        }
+      else{
+        exit(255);
+      }
       break;
     }
 
 
-    //Note that you cannot terminate the terminal process, 
     case 0x06 : { //0x06 => Kill(pid, id)
     char out[2];
     pid_t pid = (pid_t) ctx->gpr[0];
     itoa_k(out, pid);
     int x = ctx->gpr[1];
+
+    //Functionality to terminate the console
     if (pid == 1){
       memcpy(&pcb[0],&pcb[procs-1],sizeof(pcb_t));
       memset(&pcb[procs-1],0,sizeof(pcb_t));
@@ -256,6 +279,7 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       return;
       }
 
+    //Otherwise, Itereate over procs, and swap last proc with proc that is being deleted
     for (int i = 0; i<procs; i++){
       if ((pcb[i].pid == pid) && (i != (procs - 1))){
         memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
@@ -263,9 +287,10 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         procs--;
         print("\nTerminated process ");
         print(out);
-        PL011_putc(UART0,'\n',true); 
+        PL011_putc(UART0,'\n',true);
         return;
       }
+      //Unless the proc being deleted is the last proc, in which case just clear it.
       else{if (pcb[i].pid == pid){
         memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
@@ -278,8 +303,32 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       break;
     }
 
+
     case 0x07 : { //0x07 => Nice()
       break; 
+    }
+  
+    case 0x08 :{//0x08 => sem_post(sem);
+      asm volatile("sem_post: ldrex  r1, [ r0 ]\n"       
+                  "          add    r1, r1, #1\n"       
+                  "          strex r2, r1, [ r0 ]\n"    
+                  "          cmp    r2, #0\n"            
+                  "          bne    sem_post\n"          
+                  "          dmb\n");
+                  break;
+    }
+
+    case 0x09 :{//0x09 => sem_wait(sem);
+      print("Well, at least it calls");
+      asm volatile("sem_wait: ldrex  r1, [ r0 ]\n"
+                   "          cmp    r1, #0 \n"
+                   "          beq    sem_wait\n"
+                   "          sub    r1, r1, #1\n"
+                   "          strex r2, r1, [ r0 ]\n"
+                   "          cmp    r2, #0\n"
+                   "          bne    sem_wait\n"
+                   "          dmb   \n");   
+                   break;           
     }
 
     default   : { // 0x?? => unknown/unsupported
