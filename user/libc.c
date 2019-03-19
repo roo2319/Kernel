@@ -170,4 +170,12 @@ void sem_wait(void* sem){
   return;
 }
 
+void sleep(int seconds){
+   for( int i = 0; i < (seconds * 0x10000000); i++ ) {
+        asm volatile( "nop" );
+      }
+}
 
+int LCG(int seed){
+  return (((110353 * seed + 12345) % 6) + 1);
+}

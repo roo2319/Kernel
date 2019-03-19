@@ -38,8 +38,8 @@ typedef int pid_t;
 #define SYS_EXEC      ( 0x05 )
 #define SYS_KILL      ( 0x06 )
 #define SYS_NICE      ( 0x07 )
-#define SYS_SEM_POST  ( 0x08 )
-#define SYS_SEM_WAIT  ( 0x09 )
+#define SYS_SLEEP  ( 0x08 )
+
 
 #define SIG_TERM      ( 0x00 )
 #define SIG_QUIT      ( 0x01 )
@@ -80,5 +80,8 @@ extern void sem_post(void* sem);
 
 extern void sem_wait(void* sem);
 
+extern void sleep(int seconds);
+
+extern int LCG(int seed);
 
 #endif

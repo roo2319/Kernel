@@ -107,6 +107,12 @@ void main_console() {
 
       kill( pid, s );
     } 
+    else if( 0 == strcmp( p, "nice" ) ) {
+      pid_t pid = atoi( strtok( NULL, " " ) );
+      int   x   = atoi( strtok( NULL, " " ) );
+
+      nice( pid, x );
+    } 
     else {
       puts( "unknown command\n", 16 );
     }

@@ -141,6 +141,8 @@ void hilevel_handler_rst(ctx_t* ctx) {
   GICC0->CTLR         = 0x00000001; // enable GIC interface
   GICD0->CTLR         = 0x00000001; // enable GIC distributor
 
+  int_enable_irq();
+
   dispatch(ctx,NULL,&pcb[ 0 ]);
 
   return;
@@ -257,26 +259,26 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
 
 
     case 0x06 : { //0x06 => Kill(pid, id)
-    char out[2];
-    pid_t pid = (pid_t) ctx->gpr[0];
-    itoa_k(out, pid);
-    int x = ctx->gpr[1];
+      char out[2];
+      pid_t pid = (pid_t) ctx->gpr[0];
+      itoa_k(out, pid);
+      int x = ctx->gpr[1];
 
-    //Functionality to terminate the console
-    if (pid == 1){
-      memcpy(&pcb[0],&pcb[procs-1],sizeof(pcb_t));
-      memset(&pcb[procs-1],0,sizeof(pcb_t));
-      procs--;
-      if (procs != 0){
-        dispatch(ctx, NULL, &pcb[0]); 
-        print("\nTerminated Console\n");
-      }
-      else{
-        print("\nTerminated Console\n");
-        while(true){}
+      //Functionality to terminate the console
+      if (pid == 1){
+        memcpy(&pcb[0],&pcb[procs-1],sizeof(pcb_t));
+        memset(&pcb[procs-1],0,sizeof(pcb_t));
+        procs--;
+        if (procs != 0){
+          dispatch(ctx, NULL, &pcb[0]); 
+          print("\nTerminated Console\n");
         }
-        
-      return;
+        else{
+          print("\nTerminated Console\n");
+          while(true){}
+          }
+          
+        return;
       }
 
     //Otherwise, Itereate over procs, and swap last proc with proc that is being deleted
@@ -304,37 +306,25 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     }
 
 
-    case 0x07 : { //0x07 => Nice()
+    case 0x07 : { //0x07 => Nice(pid, x)
+      for (int i = 0; i<procs; i++){
+        if (pcb[i].pid == ctx->gpr[0]){
+          pcb[i].priority=ctx->gpr[1];
+          print("Successfully changed priority of process");
+          return;
+        }
+      }
+      print("Failed to change priority of process");
       break; 
     }
   
-    case 0x08 :{//0x08 => sem_post(sem);
-      asm volatile("sem_post: ldrex  r1, [ r0 ]\n"       
-                  "          add    r1, r1, #1\n"       
-                  "          strex r2, r1, [ r0 ]\n"    
-                  "          cmp    r2, #0\n"            
-                  "          bne    sem_post\n"          
-                  "          dmb\n");
-                  break;
-    }
 
-    case 0x09 :{//0x09 => sem_wait(sem);
-      print("Well, at least it calls");
-      asm volatile("sem_wait: ldrex  r1, [ r0 ]\n"
-                   "          cmp    r1, #0 \n"
-                   "          beq    sem_wait\n"
-                   "          sub    r1, r1, #1\n"
-                   "          strex r2, r1, [ r0 ]\n"
-                   "          cmp    r2, #0\n"
-                   "          bne    sem_wait\n"
-                   "          dmb   \n");   
-                   break;           
-    }
 
     default   : { // 0x?? => unknown/unsupported
       break;
     }
-  }
+  
 
   return;
   }
+}
