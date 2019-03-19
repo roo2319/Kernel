@@ -248,7 +248,7 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     case 0x05 : { //0x05 => Exec(Const void* x)
       if (ctx->gpr[0] != (uint32_t) NULL){
         ctx->lr = (uint32_t)(ctx->gpr[0]);
-        ctx->sp = current->pid*0x1000;
+        ctx->sp = current->tos;
         return;
         }
       else{
