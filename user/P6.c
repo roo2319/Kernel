@@ -1,8 +1,6 @@
 #include "P6.h"
 
-int pids[16]; 
 int forks[16];
-int random[16] = {2,3,1,2,5,3,2,3,6,1,4,2,4,1,2,4};
 int me = 1;
 
 void pickup(int left,int right){
@@ -29,7 +27,7 @@ void child(int id){
     write(STDOUT_FILENO,phil,2);
     write(STDOUT_FILENO," thinks\n",8);
     randomnumber = LCG(randomnumber);
-    sleep(LCG(randomnumber));
+    sleep((randomnumber%6)+1);
     write(STDOUT_FILENO,"Philosopher ",12);
     write(STDOUT_FILENO,phil,2);
     write(STDOUT_FILENO," is hungry\n",12);
@@ -40,7 +38,7 @@ void child(int id){
     write(STDOUT_FILENO," eats\n",6);
     write(STDOUT_FILENO,"---------\n",10);
     randomnumber = LCG(randomnumber);
-    sleep(randomnumber);
+    sleep((randomnumber%6)+1);
     putdown(left,right);
     write(STDOUT_FILENO,"Philosopher ",12);
     write(STDOUT_FILENO,phil,2);
@@ -56,12 +54,7 @@ void main_P6(){
     if (isparent == 0){
       child(i);
     }
-    pids[i] = isparent;
     forks[i] = 1;
   }
-    while(true){
-      //Print info about philosophers?
-      
-    }
   exit( EXIT_SUCCESS );
 }

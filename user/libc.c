@@ -177,5 +177,5 @@ void sleep(int seconds){
 }
 
 int LCG(int seed){
-  return (((110353 * seed + 12345) % 6) + 1);
+  return ((110353 * seed + 12345) % (1<<31));
 }

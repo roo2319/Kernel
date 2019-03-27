@@ -17,8 +17,8 @@
  QEMU_UART        = stdio
  QEMU_UART       += telnet:127.0.0.1:1235,server
 #QEMU_UART       += telnet:127.0.0.1:1236,server
- QEMU_DISPLAY     =  -display none 
-#QEMU_DISPLAY     =            -display  sdl
+# QEMU_DISPLAY     =  -display none 
+QEMU_DISPLAY     =            -display  sdl
 
  LINARO_PATH      = /usr/local/gcc-linaro-5.1-2015.08-x86_64_arm-eabi
  LINARO_PREFIX    = arm-eabi
@@ -26,14 +26,14 @@
 # part 2: build commands
 
 %.o   : %.s
-	${LINARO_PATH}/bin/${LINARO_PREFIX}-as  $(addprefix -I , ${PROJECT_PATH} ${LINARO_PATH}/${LINARO_PREFIX}/libc/usr/include) -mcpu=cortex-a8                                       -g                            -o ${@} ${<}
+	@${LINARO_PATH}/bin/${LINARO_PREFIX}-as  $(addprefix -I , ${PROJECT_PATH} ${LINARO_PATH}/${LINARO_PREFIX}/libc/usr/include) -mcpu=cortex-a8                                       -g                            -o ${@} ${<}
 %.o   : %.c
-	${LINARO_PATH}/bin/${LINARO_PREFIX}-gcc $(addprefix -I , ${PROJECT_PATH} ${LINARO_PATH}/${LINARO_PREFIX}/libc/usr/include) -mcpu=cortex-a8 -mabi=aapcs -ffreestanding -std=gnu99 -g -c -fomit-frame-pointer -O -o ${@} ${<}
+	@${LINARO_PATH}/bin/${LINARO_PREFIX}-gcc $(addprefix -I , ${PROJECT_PATH} ${LINARO_PATH}/${LINARO_PREFIX}/libc/usr/include) -mcpu=cortex-a8 -mabi=aapcs -ffreestanding -std=gnu99 -g -c -fomit-frame-pointer -O -o ${@} ${<}
 
 %.elf : ${PROJECT_OBJECTS}
-	${LINARO_PATH}/bin/${LINARO_PREFIX}-ld  $(addprefix -L ,                 ${LINARO_PATH}/${LINARO_PREFIX}/libc/usr/lib    ) -T ${*}.ld -o ${@} ${^} -lc -lgcc
+	@${LINARO_PATH}/bin/${LINARO_PREFIX}-ld  $(addprefix -L ,                 ${LINARO_PATH}/${LINARO_PREFIX}/libc/usr/lib    ) -T ${*}.ld -o ${@} ${^} -lc -lgcc
 %.bin : %.elf
-	${LINARO_PATH}/bin/${LINARO_PREFIX}-objcopy -O binary ${<} ${@}
+	@${LINARO_PATH}/bin/${LINARO_PREFIX}-objcopy -O binary ${<} ${@}
 
 # part 3: targets
 
