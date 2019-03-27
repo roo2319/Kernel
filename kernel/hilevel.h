@@ -23,6 +23,7 @@
 #include "PL050.h"
 #include "PL111.h"
 #include   "SYS.h"
+#include "display.h"
 
 
 // Include functionality relating to the   kernel.
@@ -55,9 +56,5 @@ typedef struct {
      char age;
 } pcb_t;
 
-typedef struct {
-  int x;
-  int y;
-} coord_t;
 
 #endif
