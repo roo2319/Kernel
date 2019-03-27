@@ -24,6 +24,7 @@
 #include "PL111.h"
 #include   "SYS.h"
 
+
 // Include functionality relating to the   kernel.
 
 #include "lolevel.h"
@@ -57,6 +58,6 @@ typedef struct {
 typedef struct {
   int x;
   int y;
-} mouse_t;
+} coord_t;
 
 #endif

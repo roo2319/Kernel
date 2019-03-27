@@ -8,59 +8,8 @@
 #include "hilevel.h"
 
 //Access as fb[r][c]
-char procs = 1; pcb_t pcb[ 20 ]; pcb_t* current = NULL;char nextpid = 2; uint16_t fb[ 600 ][ 800 ]; uint32_t cb[600][800]; mouse_t mouse;
-int mouse_packet[3];int mouse_packet_no = 0; uint32_t undermouse[5][5];
-
-
-
-void init_display(){
-  // Configure the LCD display into 800x600 SVGA @ 36MHz resolution.
-
-  SYSCONF->CLCD      = 0x2CAC;     // per per Table 4.3 of datasheet
-  LCD->LCDTiming0    = 0x1313A4C4; // per per Table 4.3 of datasheet
-  LCD->LCDTiming1    = 0x0505F657; // per per Table 4.3 of datasheet
-  LCD->LCDTiming2    = 0x071F1800; // per per Table 4.3 of datasheet
-
-  LCD->LCDUPBASE     = ( uint32_t )( &fb );
-
-  LCD->LCDControl    = 0x00000020; // select TFT   display type
-  LCD->LCDControl   |= 0x00000008; // select 16BPP display mode
-  LCD->LCDControl   |= 0x00000800; // power-on LCD controller
-  LCD->LCDControl   |= 0x00000001; // enable   LCD controller
-
-  /* Configure the mechanism for interrupt handling by
-   *
-   * - configuring then enabling PS/2 controllers st. an interrupt is
-   *   raised every time a byte is subsequently received,
-   * - configuring GIC st. the selected interrupts are forwarded to the 
-   *   processor via the IRQ interrupt signal, then
-   * - enabling IRQ interru    PL011_putc( UART0, '1',                      true );  
-    PL011_putc( UART0, '<',                      true ); 
-    PL011_putc( UART0, itox( ( x >> 4 ) & 0xF ), true ); 
-    PL011_putc( UART0, itox( ( x >> 0 ) & 0xF ), true ); 
-    PL011_putc( UART0, '>',                      true ); pts.
-   */
-
-  PS20->CR           = 0x00000010; // enable PS/2    (Rx) interrupt
-  PS20->CR          |= 0x00000004; // enable PS/2 (Tx+Rx)
-  PS21->CR           = 0x00000010; // enable PS/2    (Rx) interrupt
-  PS21->CR          |= 0x00000004; // enable PS/2 (Tx+Rx)
-
-  uint8_t ack;
-
-        PL050_putc( PS20, 0xF4 );  // transmit PS/2 enable command
-  ack = PL050_getc( PS20       );  // receive  PS/2 acknowledgement
-        PL050_putc( PS21, 0xF4 );  // transmit PS/2 enable command
-  ack = PL050_getc( PS21       );  // receive  PS/2 acknowledgement
-
-  GICC0->PMR         = 0x000000F0; // unmask all          interrupts
-  GICD0->ISENABLER1 |= 0x00300000; // enable PS2          interrupts
-  GICC0->CTLR        = 0x00000001; // enable GIC interface
-  GICD0->CTLR        = 0x00000001; // enable GIC distributor
-
-  mouse.x = 0;
-  mouse.y = 0;
-}
+char procs = 1; pcb_t pcb[ 20 ]; pcb_t* current = NULL;char nextpid = 2; uint16_t fb[ 600 ][ 800 ]; uint32_t cb[600][800]; coord_t mouse;
+int mouse_packet[3];int mouse_packet_no = 0; uint32_t undermouse[5][5]; bool released = false; coord_t cursor; uint32_t undercursor[5];
 
 void itoa_k( char* r, int x ) {
   char* p = r; int t, n;
@@ -97,6 +46,77 @@ void print(char* s){
     c=s[ind];
   }
 }
+
+void handle_scancode(uint8_t x){
+  if (!released){
+    switch (x)
+    {
+      case 0x15:
+        print("I am a q\n");
+        break;
+
+      case 0xF0:
+        released = true;
+        break;
+    
+      default:
+        print("Character not supported!"); 
+        break;
+    }
+  }
+  else
+  {
+    released = false;
+  }
+  
+      
+}
+
+void init_display(){
+  // Configure the LCD display into 800x600 SVGA @ 36MHz resolution.
+
+  SYSCONF->CLCD      = 0x2CAC;     // per per Table 4.3 of datasheet
+  LCD->LCDTiming0    = 0x1313A4C4; // per per Table 4.3 of datasheet
+  LCD->LCDTiming1    = 0x0505F657; // per per Table 4.3 of datasheet
+  LCD->LCDTiming2    = 0x071F1800; // per per Table 4.3 of datasheet
+
+  LCD->LCDUPBASE     = ( uint32_t )( &fb );
+
+  LCD->LCDControl    = 0x00000020; // select TFT   display type
+  LCD->LCDControl   |= 0x00000008; // select 16BPP display mode
+  LCD->LCDControl   |= 0x00000800; // power-on LCD controller
+  LCD->LCDControl   |= 0x00000001; // enable   LCD controller
+
+  /* Configure the mechanism for interrupt handling by
+   *
+   * - configuring then enabling PS/2 controllers st. an interrupt is
+   *   raised every time a byte is subsequently received,
+   * - configuring GIC st. the selected interrupts are forwarded to the 
+   *   processor via the IRQ interrupt signal, then
+   * - enabling IRQ interrupts.
+   */
+
+  PS20->CR           = 0x00000010; // enable PS/2    (Rx) interrupt
+  PS20->CR          |= 0x00000004; // enable PS/2 (Tx+Rx)
+  PS21->CR           = 0x00000010; // enable PS/2    (Rx) interrupt
+  PS21->CR          |= 0x00000004; // enable PS/2 (Tx+Rx)
+
+  uint8_t ack;
+
+        PL050_putc( PS20, 0xF4 );  // transmit PS/2 enable command
+  ack = PL050_getc( PS20       );  // receive  PS/2 acknowledgement
+        PL050_putc( PS21, 0xF4 );  // transmit PS/2 enable command
+  ack = PL050_getc( PS21       );  // receive  PS/2 acknowledgement
+
+  GICC0->PMR         = 0x000000F0; // unmask all          interrupts
+  GICD0->ISENABLER1 |= 0x00300000; // enable PS2          interrupts
+  GICC0->CTLR        = 0x00000001; // enable GIC interface
+  GICD0->CTLR        = 0x00000001; // enable GIC distributor
+
+  mouse.x = 0;
+  mouse.y = 0;
+}
+
 
 void dispatch( ctx_t* ctx, pcb_t* prev, pcb_t* next ) {
 
@@ -144,7 +164,6 @@ void schedule( ctx_t* ctx ) {
 extern void     main_console();
 extern uint32_t tos_console;
 
-//Copy from top -1000 to top for 1000 bytes 
 
 
 
@@ -224,12 +243,7 @@ void hilevel_handler_irq(ctx_t* ctx) {
   }
   else if     ( id == GIC_SOURCE_PS20 ) {
     uint8_t x = PL050_getc( PS20 );
-
-    PL011_putc( UART0, '0',                      true );  
-    PL011_putc( UART0, '<',                      true ); 
-    PL011_putc( UART0, itox( ( x >> 4 ) & 0xF ), true ); 
-    PL011_putc( UART0, itox( ( x >> 0 ) & 0xF ), true ); 
-    PL011_putc( UART0, '>',                      true ); 
+    handle_scancode(x);
   }
   else if( id == GIC_SOURCE_PS21 ) {
     mouse_packet[mouse_packet_no] = PL050_getc( PS21 );
