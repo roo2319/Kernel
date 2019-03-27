@@ -198,12 +198,12 @@ void hilevel_handler_rst(ctx_t* ctx) {
 
   for( int i = 0; i < 600; i++ ) {
     for( int j = 0; j < 800; j++ ) {
-      fb[ i ][ j ] = 0x1F << ( ( i / 200 ) * 5 );
+      fb[ i ][ j ] = 0;
     }
   }
   for( int i = 0; i < 5; i++ ) {
     for( int j = 0; j < 5; j++ ) {
-      undermouse[ i ][ j ] = 0x1F;
+      undermouse[ i ][ j ] = 0;
     }
   }
   dispatch(ctx,NULL,&pcb[ 0 ]);
@@ -240,13 +240,13 @@ void hilevel_handler_irq(ctx_t* ctx) {
           fb[(mouse.y+i)%600][(mouse.x+j)%800] = undermouse[i][j];
         }
       }
-      mouse.x +=  mouse_packet[1] - ((mouse_packet[0] << 4) & 0x100);
-      mouse.y -=  mouse_packet[2] - ((mouse_packet[0] << 3) & 0x100);
+      mouse.x =  (mouse.x + mouse_packet[1] - ((mouse_packet[0] << 4) & 0x100)) %800;
+      mouse.y =  (mouse.y - (mouse_packet[2] - ((mouse_packet[0] << 3) & 0x100))+600)%600;
       mouse_packet_no = 0;
       for (int i = 0; i<5; i++){
         for (int j = 0; j<5; j++){
-          undermouse[i][j] = fb[(mouse.y+i)%600][(mouse.x+j)%800]; 
-          fb[(mouse.y+i)%600][(mouse.x+j)%800] = 0x7FFF;
+          undermouse[i][j] = fb[(mouse.y+i+600)%600][(mouse.x+j)%800]; 
+          fb[(mouse.y+i+600)%600][(mouse.x+j)%800] = 0x7FFF;
         }
       }
     }
