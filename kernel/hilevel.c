@@ -8,8 +8,8 @@
 #include "hilevel.h"
 
 //Access as fb[r][c]
-char procs = 1; pcb_t pcb[ 20 ]; pcb_t* current = NULL;char nextpid = 2; uint16_t fb[ 600 ][ 800 ]; coord_t* mouse;
-bool released = false; coord_t cursor; uint16_t undercursor[5];
+char procs = 1; pcb_t pcb[ 20 ]; pcb_t* current = NULL;char nextpid = 2; uint16_t fb[ 600 ][ 800 ]; coord_t mouse;
+coord_t cursor;
 
 void itoa_k( char* r, int x ) {
   char* p = r; int t, n;
@@ -37,40 +37,7 @@ void itoa_k( char* r, int x ) {
   return;
 }
 
-void print(char* s){
-  char ind = 0;
-  char c = s[0];
-  while (c != '\0'){
-    PL011_putc(UART0,c,true);
-    ind++;
-    c=s[ind];
-  }
-}
 
-void handle_scancode(uint8_t x){
-  if (!released){
-    switch (x)
-    {
-      case 0x15:
-        print("I am a q\n");
-        break;
-
-      case 0xF0:
-        released = true;
-        break;
-    
-      default:
-        print("Character not supported!"); 
-        break;
-    }
-  }
-  else
-  {
-    released = false;
-  }
-  
-      
-}
 
 
 
@@ -164,7 +131,7 @@ void hilevel_handler_rst(ctx_t* ctx) {
   GICC0->CTLR        = 0x00000001; // enable GIC interface
   GICD0->CTLR        = 0x00000001; // enable GIC distributor
   
-  init_display(fb,mouse);
+  init_display(fb,&mouse,&cursor);
 
   /* Initialise two PCBs, representing user processes stemming from execution 
    * of two user programs.  Note in each case that
@@ -227,11 +194,11 @@ void hilevel_handler_irq(ctx_t* ctx) {
     schedule(ctx);  TIMER0->Timer1IntClr = 0x01;  
   }
   else if     ( id == GIC_SOURCE_PS20 ) {
-    uint8_t x = PL050_getc( PS20 );
-    handle_scancode(x);
+    handle_keyboard(fb,&cursor, &mouse);
+    
   }
   else if( id == GIC_SOURCE_PS21 ) {
-    handle_mouse_move(fb,mouse);
+    handle_mouse_move(fb,&mouse);
   
   }
 
