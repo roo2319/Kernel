@@ -240,13 +240,34 @@ void hilevel_handler_irq(ctx_t* ctx) {
           fb[(mouse.y+i)%600][(mouse.x+j)%800] = undermouse[i][j];
         }
       }
-      mouse.x =  (mouse.x + mouse_packet[1] - ((mouse_packet[0] << 4) & 0x100)) %800;
-      mouse.y =  (mouse.y - (mouse_packet[2] - ((mouse_packet[0] << 3) & 0x100))+600)%600;
+      //Setup right wall
+      if ((mouse.x + mouse_packet[1] - ((mouse_packet[0] << 4) & 0x100)) >= 800){
+        mouse.x = 799;
+      }
+      //Setup left wall
+      else if((mouse.x + mouse_packet[1] - ((mouse_packet[0] << 4) & 0x100)) < 0){
+        mouse.x = 0;
+      }
+      else{
+        mouse.x =  (mouse.x + mouse_packet[1] - ((mouse_packet[0] << 4) & 0x100));
+      }
+
+      //Setup bottom wall
+      if ((mouse.y - (mouse_packet[2] - ((mouse_packet[0] << 3) & 0x100))) >= 600){
+        mouse.y = 599;
+      }
+      //Setup top wall
+      else if((mouse.y - (mouse_packet[2] - ((mouse_packet[0] << 3) & 0x100))) < 0){
+        mouse.y = 0;
+      }
+      else{
+        mouse.y =  (mouse.y - (mouse_packet[2] - ((mouse_packet[0] << 3) & 0x100))+600)%600;
+      }
       mouse_packet_no = 0;
-      for (int i = 0; i<5; i++){
-        for (int j = 0; j<5; j++){
-          undermouse[i][j] = fb[(mouse.y+i+600)%600][(mouse.x+j)%800]; 
-          fb[(mouse.y+i+600)%600][(mouse.x+j)%800] = 0x7FFF;
+      for (int i = 0; i<5 && mouse.y + i < 600; i++){
+        for (int j = 0; j<5 && mouse.x + j < 800; j++){
+          undermouse[i][j] = fb[(mouse.y+i)][(mouse.x+j)]; 
+          fb[(mouse.y+i)][(mouse.x+j)] = 0x7FFF;
         }
       }
     }
