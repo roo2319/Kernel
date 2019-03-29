@@ -39,6 +39,7 @@ typedef int pid_t;
 #define SYS_KILL      ( 0x06 )
 #define SYS_NICE      ( 0x07 )
 #define SYS_DISPLAY_PUT  ( 0x08 )
+#define SYS_DRAW_RECT ( 0x09 )
 
 
 #define SIG_TERM      ( 0x00 )
@@ -78,6 +79,9 @@ extern void nice( pid_t pid, int x );
 
 // Place a character onto the frame buffer, at the cursor location
 extern void display_put(char* x, int n,int colour);
+
+//Draw a rectangle at coords x,y
+extern void draw_rect(int x,int y, int xlen, int ylen, int colour);
 
 
 //Userland semaphore post

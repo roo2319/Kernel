@@ -66,6 +66,38 @@ void move_cursor(uint16_t fb[600][800], coord_t* cursor, int x, int y){
 
 }
 
+void init_display(uint16_t fb[600][800],coord_t* mouse,coord_t* cursor){
+
+  mouse->x = 0;
+  mouse->y = 0;
+  cursor->x = 0;
+  cursor->y = 0;
+
+  for( int i = 0; i < 600; i++ ) {
+    for( int j = 0; j < 800; j++ ) {
+        fb[ i ][ j ] = 0;
+    }
+  }
+  for( int i = 0; i < 5; i++ ) {
+    for( int j = 0; j < 5; j++ ) {
+      undermouse[ i ][ j ] = 0;
+    }
+    //Initialised undermouse with cursor
+    undermouse[i][0] = GREEN;
+    undermouse[i+5][0] = GREEN;
+  }
+  draw_cursor(fb,cursor);
+
+  return;
+}
+
+void draw_rectangle(uint16_t fb[600][800],int x, int y, int xlen, int ylen, int colour){
+  for (int i = 0; i<xlen;i++){
+    for (int j = 0;j<ylen;j++){
+      fb[y+j][x+i] = colour;
+    }
+  }
+}
 
 //Well defined for A-Z and . , '
 void draw_char(uint16_t fb[600][800], coord_t* cursor,char character,int colour){
@@ -109,30 +141,6 @@ void handle_newline(uint16_t fb[600][800], coord_t* cursor){
 
 }
 
-void init_display(uint16_t fb[600][800],coord_t* mouse,coord_t* cursor){
-
-  mouse->x = 0;
-  mouse->y = 0;
-  cursor->x = 0;
-  cursor->y = 0;
-
-  for( int i = 0; i < 600; i++ ) {
-    for( int j = 0; j < 800; j++ ) {
-        fb[ i ][ j ] = 0;
-    }
-  }
-  for( int i = 0; i < 5; i++ ) {
-    for( int j = 0; j < 5; j++ ) {
-      undermouse[ i ][ j ] = 0;
-    }
-    //Initialised undermouse with cursor
-    undermouse[i][0] = GREEN;
-    undermouse[i+5][0] = GREEN;
-  }
-  draw_cursor(fb,cursor);
-
-  return;
-}
 
 void handle_scancode(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse, uint8_t x){
   if (!released){

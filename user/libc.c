@@ -160,6 +160,20 @@ void display_put( char* x, int n, int colour) {
   return;
 }
 
+void draw_rect( int x, int y, int xlen, int ylen, int colour) {
+  asm volatile( "mov r0, %1 \n" // assign r0 = x
+                "mov r1,  %2 \n" // assign r1 = y
+                "mov r2, %3  \n" // assign r2 = xlen
+                "mov r3, %4  \n" // assign r3 = ylen
+                "mov r4, %5  \n" // assign r4 = colour
+                "svc %0     \n" // make system call SYS_DISPLAY_PUT
+              :
+              : "I" (SYS_DRAW_RECT), "r" (x), "r" (y), "r" (xlen), "r" (ylen), "r" (colour)
+              : "r0", "r1", "r2","r3","r4");
+
+  return;
+}
+
 void sem_post(void* sem){
  asm volatile("sem_post: ldrex  r1, [ r0 ]\n"       
                   "          add    r1, r1, #1\n"       
