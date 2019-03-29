@@ -213,6 +213,7 @@ void hilevel_handler_irq(ctx_t* ctx) {
 }
 
 void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
+  int_unable_irq();
   switch( id ){
 
     case 0x00 : {// 0x00 => yield()
@@ -262,24 +263,27 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       char code[3]; 
       itoa_k(code,ctx->gpr[0]);
       for (int i = 0; i<procs; i++){
-      if ((pcb[i].pid == pid) && (i != (procs - 1))){
-        memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
-        memset(&pcb[procs-1],0,sizeof(pcb_t));
-        procs--;
-        break;
-      }
-      else{
-        if (pcb[i].pid == pid){
+        //PCB in middle, swap
+        if ((pcb[i].pid == pid) && (i != (procs - 1))){
+          memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
           memset(&pcb[procs-1],0,sizeof(pcb_t));
           procs--;
           break;
-          }
         }
+
+        //Last case, Decrement procs count only
+        else if (pcb[i].pid == pid){
+          memset(&pcb[procs-1],0,sizeof(pcb_t));
+          procs--;
+          break;
+        }
+        
       }
       if (ctx->gpr[0] == 255){
         print("Failed to start program");
         dispatch(ctx,NULL,&pcb[0]);
-        break;
+        int_enable_irq();
+        return;
       }
       print("\nExited with exit code ");
       print(code);
@@ -320,11 +324,11 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
           print("\nTerminated Console\n");
           while(true){}
           }
-          
+        int_enable_irq();
         return;
       }
 
-    //Otherwise, Itereate over procs, and swap last proc with proc that is being deleted
+    //Otherwise, Iterate over procs, and swap last proc with proc that is being deleted
     for (int i = 0; i<procs; i++){
       if ((pcb[i].pid == pid) && (i != (procs - 1))){
         memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
@@ -333,16 +337,18 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         print("\nTerminated process ");
         print(out);
         PL011_putc(UART0,'\n',true);
+        int_enable_irq();
         return;
       }
       //Unless the proc being deleted is the last proc, in which case just clear it.
-      else{if (pcb[i].pid == pid){
+      else if (pcb[i].pid == pid){
         memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
         print("\nTerminated process ");
         print(out);
-        PL011_putc(UART0,'\n',true); 
-        return;}}
+        PL011_putc(UART0,'\n',true);
+        int_enable_irq(); 
+        return;}
     }
     print("No process was terminated");
       break;
@@ -354,11 +360,48 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         if (pcb[i].pid == ctx->gpr[0]){
           pcb[i].priority=ctx->gpr[1];
           print("Successfully changed priority of process");
+          int_enable_irq();
           return;
         }
       }
       print("Failed to change priority of process");
       break; 
+    }
+
+    case 0x08 : { //0x08 => display_put(x)
+      char* string = (char*) ctx->gpr[0];
+      int n        = ctx->gpr[1];
+      int colour   = ctx->gpr[2];
+      int x;
+      for( int i = 0; i < n; i++ ) {
+        x = string[i];
+        if (x == '\0'){
+          break;
+        }
+        else if (x == '\n'){
+          handle_newline(fb,&cursor);
+        }
+        else if (x == '.'){
+          draw_char(fb,&cursor,26,colour);
+        }
+        else if (x == ','){
+          draw_char(fb,&cursor,27,colour);
+        }
+        else if (x == '\''){
+          draw_char(fb,&cursor,28,colour);
+        } 
+        else if (x == ' '){
+          draw_char(fb,&cursor,29,colour);
+        }
+        else if (x - 'A' < 26){
+          draw_char(fb,&cursor,x-'A',colour);
+        }
+        else if ((x - 'a') <26){
+          draw_char(fb,&cursor,x-'a',colour);
+        }
+      }
+      break;
+
     }
   
 
@@ -367,7 +410,7 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       break;
     }
   
-
+  int_enable_irq();
   return;
   }
 }

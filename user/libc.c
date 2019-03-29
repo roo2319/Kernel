@@ -148,6 +148,18 @@ void nice( int pid, int x ) {
   return;
 }
 
+void display_put( char* x, int n, int colour) {
+  asm volatile( "mov r0, %1 \n" // assign r0 = x
+                "mov r1,  %2 \n" // assign r1 = n
+                "mov r2, %3  \n" // assign r2 = colour
+                "svc %0     \n" // make system call SYS_DISPLAY_PUT
+              :
+              : "I" (SYS_DISPLAY_PUT), "r" (x), "r" (n), "r" (colour)
+              : "r0", "r1", "r2");
+
+  return;
+}
+
 void sem_post(void* sem){
  asm volatile("sem_post: ldrex  r1, [ r0 ]\n"       
                   "          add    r1, r1, #1\n"       
@@ -177,5 +189,5 @@ void sleep(int seconds){
 }
 
 int LCG(int seed){
-  return ((110353 * seed + 12345) % (1<<31));
+  return ((1103515245 * seed + 12345) % (1<<31));
 }

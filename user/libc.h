@@ -38,7 +38,7 @@ typedef int pid_t;
 #define SYS_EXEC      ( 0x05 )
 #define SYS_KILL      ( 0x06 )
 #define SYS_NICE      ( 0x07 )
-#define SYS_SLEEP  ( 0x08 )
+#define SYS_DISPLAY_PUT  ( 0x08 )
 
 
 #define SIG_TERM      ( 0x00 )
@@ -76,12 +76,20 @@ extern int  kill( pid_t pid, int x );
 // for process identified by pid, set  priority to x
 extern void nice( pid_t pid, int x );
 
+// Place a character onto the frame buffer, at the cursor location
+extern void display_put(char* x, int n,int colour);
+
+
+//Userland semaphore post
 extern void sem_post(void* sem);
 
+//Userland semaphore wait
 extern void sem_wait(void* sem);
 
+//Wait for int seconds in userland (does not count outside of timeslice)
 extern void sleep(int seconds);
 
+//Generate a sequence of pseudorandom numbers from a seed
 extern int LCG(int seed);
 
 #endif

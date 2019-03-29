@@ -12,6 +12,12 @@
 #include "GIC.h"
 #include "SYS.h"
 
+#define BLACK 0
+#define WHITE 0x7FFF
+#define RED   0x001F
+#define GREEN 0x03E0
+#define BLUE  0x7C00
+
 
 typedef struct {
   int x,y;
@@ -20,5 +26,7 @@ typedef struct {
 
 extern void print(char* s);
 extern void init_display(uint16_t fb[600][800], coord_t* mouse, coord_t* cursor);
+extern void draw_char(uint16_t fb[600][800],coord_t* cursor, char character, int colour);
+extern void handle_newline(uint16_t fb[600][800],coord_t* cursor); 
 extern void handle_keyboard(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse);
 extern void handle_mouse_move(uint16_t fb[600][800], coord_t* mouse);
