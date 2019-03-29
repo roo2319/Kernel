@@ -36,11 +36,11 @@ int const Font[31][7] = {
    {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}    //Square character
    }; 
 
-void print(char* s){
+void print(PL011_t* uart, char* s){
   char ind = 0;
   char c = s[0];
   while (c != '\0'){
-    PL011_putc(UART0,c,true);
+    PL011_putc(uart,c,true);
     ind++;
     c=s[ind];
   }
@@ -331,7 +331,7 @@ void handle_scancode(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse, uin
         break;
     
       default:
-        print("Character not supported!"); 
+        print(UART0,"Character not supported!"); 
         break;
     }
   }

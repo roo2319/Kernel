@@ -8,7 +8,7 @@
 #include "hilevel.h"
 
 //Access as fb[r][c]
-char procs = 1; pcb_t pcb[ 20 ]; pcb_t* current = NULL;char nextpid = 2; uint16_t fb[ 600 ][ 800 ]; coord_t mouse;
+char procs = 1; pcb_t pcb[ 100 ]; pcb_t* current = NULL;char nextpid = 2; uint16_t fb[ 600 ][ 800 ]; coord_t mouse;
 coord_t cursor;
 
 void itoa_k( char* r, int x ) {
@@ -39,6 +39,62 @@ void itoa_k( char* r, int x ) {
 
 
 
+void kill_children(pid_t parent){
+  pid_t child_pid;
+  char out[2];
+  for (int i = 0; i<procs;i++){
+    if (pcb[i].parent == parent){
+
+      //Store the pid of the child
+      child_pid = pcb[i].pid;
+      //Kill the childs children
+      kill_children(child_pid);
+      itoa_k(out, child_pid);
+
+      //Kill the child itself (Similar implementation to kill)
+      for (int i = 0; i<procs; i++){
+        if (pcb[i].pid == child_pid && i != (procs - 1)){
+          memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
+          memset(&pcb[procs-1],0,sizeof(pcb_t));
+          procs--;
+          print(UART1,"\nTerminated process ");
+          print(UART1,out);
+          PL011_putc(UART1,'\n',true);
+        }
+
+        else if (pcb[i].pid == child_pid){
+          memset(&pcb[procs-1],0,sizeof(pcb_t));
+          procs--;
+          print(UART1, "\nTerminated process ");
+          print(UART1, out);
+          PL011_putc(UART1,'\n',true);
+          }
+      }
+      i = 0;
+    }
+  }
+
+}
+
+void draw_children(pid_t parent,char depth){
+  pid_t child_pid;
+  char out[2];
+  for (int i = 0; i<procs;i++){
+    if (pcb[i].parent == parent){
+      child_pid = pcb[i].pid;
+      for (int j = 0; j<depth;j++){
+        print(UART1,"---");
+      }
+      PL011_putc(UART1,' ',true);
+      itoa_k(out, child_pid);
+      print(UART1,out);
+      PL011_putc(UART1,'\n',true);
+      //Store the pid of the child
+      //Kill the childs children
+      draw_children(child_pid,depth+1);
+    }
+  }
+}
 
 
 void dispatch( ctx_t* ctx, pcb_t* prev, pcb_t* next ) {
@@ -280,13 +336,13 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         
       }
       if (ctx->gpr[0] == 255){
-        print("Failed to start program");
+        print(UART1,"Failed to start program");
         dispatch(ctx,NULL,&pcb[0]);
         int_enable_irq();
         return;
       }
-      print("\nExited with exit code ");
-      print(code);
+      print(UART1, "\nExited with exit code ");
+      print(UART1, code);
       dispatch(ctx, NULL, &pcb[0]);
       break;
     }
@@ -311,21 +367,16 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       itoa_k(out, pid);
       int x = ctx->gpr[1];
 
+      //Kill children first
+      kill_children(pid);
       //Functionality to terminate the console
       if (pid == 1){
         memcpy(&pcb[0],&pcb[procs-1],sizeof(pcb_t));
         memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
-        if (procs != 0){
-          dispatch(ctx, NULL, &pcb[0]); 
-          print("\nTerminated Console\n");
-        }
-        else{
-          print("\nTerminated Console\n");
-          while(true){}
-          }
-        int_enable_irq();
-        return;
+        print(UART1, "\nTerminated Console\n");
+        //Trap, Execution cannot continue
+        while(true){}
       }
 
     //Otherwise, Iterate over procs, and swap last proc with proc that is being deleted
@@ -334,9 +385,9 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
         memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
-        print("\nTerminated process ");
-        print(out);
-        PL011_putc(UART0,'\n',true);
+        print(UART1,"\nTerminated process ");
+        print(UART1, out);
+        PL011_putc(UART1,'\n',true);
         int_enable_irq();
         return;
       }
@@ -344,13 +395,13 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       else if (pcb[i].pid == pid){
         memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
-        print("\nTerminated process ");
-        print(out);
-        PL011_putc(UART0,'\n',true);
+        print(UART1, "\nTerminated process ");
+        print(UART1, out);
+        PL011_putc(UART1,'\n',true);
         int_enable_irq(); 
         return;}
     }
-    print("No process was terminated");
+    print(UART1,"No process was terminated");
       break;
     }
 
@@ -359,16 +410,22 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       for (int i = 0; i<procs; i++){
         if (pcb[i].pid == ctx->gpr[0]){
           pcb[i].priority=ctx->gpr[1];
-          print("Successfully changed priority of process");
+          print(UART1,"Successfully changed priority of process");
           int_enable_irq();
           return;
         }
       }
-      print("Failed to change priority of process");
+      print(UART1,"Failed to change priority of process");
       break; 
     }
 
-    case 0x08 : { //0x08 => display_put(x)
+    case 0x08 : { //0x08 => ps(), Draw process tree
+      print(UART1,"1\n");
+      draw_children(1,1);
+      break;
+    }
+
+    case 0x09 : { //0x09 => display_put(x)
       char* string = (char*) ctx->gpr[0];
       int n        = ctx->gpr[1];
       int colour   = ctx->gpr[2];
@@ -404,10 +461,11 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
 
     }
 
-    case 0x09:
+    case 0x0A : { //0x0A, draw_rectangle(fb,x,y,lenx,leny,colour)
       draw_rectangle(fb,ctx->gpr[0],ctx->gpr[1],ctx->gpr[2],ctx->gpr[3],ctx->gpr[4]);
       break;
-  
+    }
+
 
 
     default   : { // 0x?? => unknown/unsupported

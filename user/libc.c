@@ -148,6 +148,15 @@ void nice( int pid, int x ) {
   return;
 }
 
+void ps() {
+  asm volatile( "svc %0     \n" // make system call SYS_PS
+              :
+              : "I" (SYS_PS)
+              : );
+
+  return;
+}
+
 void display_put( char* x, int n, int colour) {
   asm volatile( "mov r0, %1 \n" // assign r0 = x
                 "mov r1,  %2 \n" // assign r1 = n

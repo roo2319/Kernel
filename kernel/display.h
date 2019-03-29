@@ -24,7 +24,7 @@ typedef struct {
 } coord_t;
 
 
-extern void print(char* s);
+extern void print(PL011_t* uart, char* s);
 extern void init_display(uint16_t fb[600][800], coord_t* mouse, coord_t* cursor);
 extern void draw_rectangle(uint16_t fb[600][800],int x, int y, int xlen, int ylen, int colour);
 extern void draw_char(uint16_t fb[600][800],coord_t* cursor, char character, int colour);

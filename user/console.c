@@ -121,6 +121,9 @@ void main_console() {
 
       nice( pid, x );
     } 
+    else if(0 == strcmp(p, "ps")){
+      ps();
+    }
     else {
       puts( "unknown command\n", 16 );
     }

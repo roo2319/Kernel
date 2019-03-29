@@ -61,5 +61,7 @@ void main_P6(){
     }
     forks[i] = 1;
   }
-  exit( EXIT_SUCCESS );
+  while (true){
+    
+  }
 }

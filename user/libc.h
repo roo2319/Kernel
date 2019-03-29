@@ -38,8 +38,9 @@ typedef int pid_t;
 #define SYS_EXEC      ( 0x05 )
 #define SYS_KILL      ( 0x06 )
 #define SYS_NICE      ( 0x07 )
-#define SYS_DISPLAY_PUT  ( 0x08 )
-#define SYS_DRAW_RECT ( 0x09 )
+#define SYS_PS        (0x08)
+#define SYS_DISPLAY_PUT  ( 0x09 )
+#define SYS_DRAW_RECT ( 0x0A )
 
 
 #define SIG_TERM      ( 0x00 )
@@ -76,6 +77,9 @@ extern void exec( const void* x );
 extern int  kill( pid_t pid, int x );
 // for process identified by pid, set  priority to x
 extern void nice( pid_t pid, int x );
+
+//List process tree
+extern void ps();
 
 // Place a character onto the frame buffer, at the cursor location
 extern void display_put(char* x, int n,int colour);
