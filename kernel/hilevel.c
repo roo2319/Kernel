@@ -338,11 +338,16 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       if (ctx->gpr[0] == 255){
         print(UART1,"Failed to start program");
         dispatch(ctx,NULL,&pcb[0]);
+        //Create command prompt again, as it will be overwritten.
+        //There is definitely a bug in the previously entered characters will stay
+        //It's a design tradeoff
+        print(UART1,"\nshell$ ");
         int_enable_irq();
         return;
       }
       print(UART1, "\nExited with exit code ");
       print(UART1, code);
+      print(UART1,"\nshell$ ");
       dispatch(ctx, NULL, &pcb[0]);
       break;
     }
@@ -410,12 +415,12 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       for (int i = 0; i<procs; i++){
         if (pcb[i].pid == ctx->gpr[0]){
           pcb[i].priority=ctx->gpr[1];
-          print(UART1,"Successfully changed priority of process");
+          print(UART1,"Successfully changed priority of process\n");
           int_enable_irq();
           return;
         }
       }
-      print(UART1,"Failed to change priority of process");
+      print(UART1,"Failed to change priority of process\n");
       break; 
     }
 
@@ -463,6 +468,16 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
 
     case 0x0A : { //0x0A, draw_rectangle(fb,x,y,lenx,leny,colour)
       draw_rectangle(fb,ctx->gpr[0],ctx->gpr[1],ctx->gpr[2],ctx->gpr[3],ctx->gpr[4]);
+      break;
+    }
+
+    case 0x0B: {//0x0B get_mouse_x()
+      ctx->gpr[0] = mouse.x;
+      break;
+    }
+
+    case 0x0C: {//0x0B get_mouse_y()
+      ctx->gpr[0] = mouse.y;
       break;
     }
 

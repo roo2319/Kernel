@@ -16,6 +16,8 @@
 
 typedef int pid_t;
 
+
+
 /* The definitions below capture symbolic constants within these classes:
  *
  * 1. system call identifiers (i.e., the constant used by a system call
@@ -41,6 +43,8 @@ typedef int pid_t;
 #define SYS_PS        (0x08)
 #define SYS_DISPLAY_PUT  ( 0x09 )
 #define SYS_DRAW_RECT ( 0x0A )
+#define SYS_GET_MOUSE_X (0x0B)
+#define SYS_GET_MOUSE_Y (0x0C)
 
 
 #define SIG_TERM      ( 0x00 )
@@ -86,6 +90,11 @@ extern void display_put(char* x, int n,int colour);
 
 //Draw a rectangle at coords x,y
 extern void draw_rect(int x,int y, int xlen, int ylen, int colour);
+
+//Get the position of the mouse
+extern int get_mouse_x();
+
+extern int get_mouse_y();
 
 
 //Userland semaphore post

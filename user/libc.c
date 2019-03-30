@@ -183,6 +183,31 @@ void draw_rect( int x, int y, int xlen, int ylen, int colour) {
   return;
 }
 
+int  get_mouse_x() {
+  int r;
+
+  asm volatile( "svc %1     \n" // make system call SYS_GET_MOUSE_POS
+                "mov %0, r0 \n" // assign r  = r0 
+              : "=r" (r) 
+              : "I" (SYS_GET_MOUSE_X)
+              : "r0" );
+
+  return r;
+}
+
+int  get_mouse_y() {
+  int r;
+
+  asm volatile( "svc %1     \n" // make system call SYS_GET_MOUSE_POS
+                "mov %0, r0 \n" // assign r  = r0 
+              : "=r" (r) 
+              : "I" (SYS_GET_MOUSE_Y)
+              : "r0" );
+
+  return r;
+}
+
+
 void sem_post(void* sem){
  asm volatile("sem_post: ldrex  r1, [ r0 ]\n"       
                   "          add    r1, r1, #1\n"       

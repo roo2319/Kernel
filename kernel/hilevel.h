@@ -52,7 +52,7 @@ typedef struct {
   status_t status;
      ctx_t    ctx;
      uint32_t tos;
-     char priority;
+     int priority;
      char age;
 } pcb_t;
 

@@ -39,7 +39,11 @@ extern void main_P4();
 extern void main_P5(); 
 extern void main_P6();
 extern void main_P7();
-extern void main_P8();
+extern void conway_start();
+extern void conway_line();
+extern void conway_glider();
+extern void conway_reset();
+extern void conway_mouse_glider();
 
 void* load( char* x ) {
   if     ( 0 == strcmp( x, "P3" ) ) {
@@ -57,8 +61,26 @@ void* load( char* x ) {
   else if( 0 == strcmp(x, "P7")){
     return &main_P7;
   }
-  else if( 0 == strcmp(x, "P8")){
-    return &main_P8;
+
+
+  return NULL;
+}
+
+void* conway_load( char* x){
+  if ( 0 == strcmp(x, "start")){
+    return &conway_start;
+  }
+  else if ( 0 == strcmp(x, "line")){
+    return &conway_line;
+  }
+  else if ( 0 == strcmp(x, "glider")){
+    return &conway_glider;
+  }
+  else if ( 0 == strcmp(x, "reset")){
+    return &conway_reset;
+  }
+  else if ( 0 == strcmp(x, "mouse_glider")){
+    return &conway_mouse_glider;
   }
 
   return NULL;
@@ -124,6 +146,13 @@ void main_console() {
     else if(0 == strcmp(p, "ps")){
       ps();
     }
+    else if     ( 0 == strcmp( p, "conway"   ) ) {
+      pid_t pid = fork();
+
+      if( 0 == pid ) {
+        exec( conway_load( strtok( NULL, " " ) ) );
+      }
+    } 
     else {
       puts( "unknown command\n", 16 );
     }
