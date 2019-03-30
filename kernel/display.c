@@ -1,6 +1,18 @@
 #include "display.h"
 
-int mouse_packet[3];int mouse_packet_no = 0; uint16_t undermouse[5][5]; uint16_t undercursor[10]; bool released = false;
+int mouse_packet[3];int mouse_packet_no = 0; uint16_t undermouse[7][8]; uint16_t undercursor[10]; bool released = false;
+bool has_mouse_changed;
+extern void conway_from_mouse(int x, int y, bool draw);
+
+int mouse_design[7] ={
+  0b11111000,
+  0b11111000,
+  0b11100000,
+  0b11010000,
+  0b11001000,
+  0b00000100,
+  0b00000010,
+};
 
 int const Font[31][7] = { 
    {0x04, 0x0a, 0x11, 0x11, 0x1f, 0x11, 0x11},   //A
@@ -35,6 +47,7 @@ int const Font[31][7] = {
    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},    //space
    {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}    //Square character
    }; 
+
 
 void print(PL011_t* uart, char* s){
   char ind = 0;
@@ -78,16 +91,12 @@ void init_display(uint16_t fb[600][800],coord_t* mouse,coord_t* cursor){
         fb[ i ][ j ] = 0;
     }
   }
-  for( int i = 0; i < 5; i++ ) {
-    for( int j = 0; j < 5; j++ ) {
-      undermouse[ i ][ j ] = 0;
-    }
-    //Initialised undermouse with cursor
-    undermouse[i][0] = GREEN;
-    undermouse[i+5][0] = GREEN;
-  }
   draw_cursor(fb,cursor);
-
+  for( int i = 0; i < 7; i++ ) {
+    for( int j = 0; j < 8; j++ ) {
+      undermouse[ i ][ j ] = fb[i][j];
+    }
+  }
   return;
 }
 
@@ -119,6 +128,14 @@ void draw_char(uint16_t fb[600][800], coord_t* cursor,char character,int colour)
       cursor->x+=16;
     }
     draw_cursor(fb,cursor);
+}
+
+void draw_mouse(uint16_t fb[600][800], coord_t* mouse){
+  for( int i = 0; i < 7; i++ ) {
+      for( int j = 0; j < 8; j++ ) {
+          fb[ mouse->y + i ][mouse->x + j ] = ((mouse_design[i] & (1<<(7-j)))>>(7-j)) * WHITE;
+      }
+  }
 }
 
 
@@ -331,7 +348,6 @@ void handle_scancode(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse, uin
         break;
     
       default:
-        print(UART0,"Character not supported!"); 
         break;
     }
   }
@@ -350,9 +366,21 @@ void handle_mouse_move(uint16_t fb[600][800], coord_t* mouse){
     mouse_packet[mouse_packet_no] = PL050_getc( PS21 );
     mouse_packet_no++;
     if (mouse_packet_no == 3){
-      for (int i = 0; i<5 && mouse->y + i < 600; i++){
-        for (int j = 0; j<5 && mouse->x + j < 800; j++){
-          if (fb[(mouse->y+i)][(mouse->x+j)] == WHITE){
+
+      //To decide if we can replace with undermouse buffer we must determine if the mouse has changed.
+
+      has_mouse_changed = false;
+      for (int i = 0; i<7 && mouse->y + i < 600; i++){
+        for (int j = 0; j<8 && mouse->x + j < 800; j++){
+          if (fb[(mouse->y+i)][(mouse->x+j)] != ((mouse_design[i] & (1<<(7-j)))>>(7-j)) * WHITE){
+            has_mouse_changed = true;
+          }
+        }
+      }
+      //If the mouse has not changed, then we can safely replace with the under mouse buffer
+      if (!has_mouse_changed){
+        for (int i = 0; i<7 && mouse->y + i < 600; i++){
+          for (int j = 0; j<8 && mouse->x + j < 800; j++){
             fb[(mouse->y+i)][(mouse->x+j)] = undermouse[i][j];
           }
         }
@@ -380,12 +408,18 @@ void handle_mouse_move(uint16_t fb[600][800], coord_t* mouse){
       else{
         mouse->y =  (mouse->y - (mouse_packet[2] - ((mouse_packet[0] << 3) & 0x100))+600)%600;
       }
+      if ((mouse_packet[0] & 1) == 1){
+        conway_from_mouse(mouse->x,mouse->y,true);
+      }
+      else if ((mouse_packet[0] & (1<<1)) == 2){
+        conway_from_mouse(mouse->x,mouse->y,false);
+      }
       mouse_packet_no = 0;
-      for (int i = 0; i<5 && mouse->y + i < 600; i++){
-        for (int j = 0; j<5 && mouse->x + j < 800; j++){
+      for (int i = 0; i<7 && mouse->y + i < 600; i++){
+        for (int j = 0; j<8 && mouse->x + j < 800; j++){
           undermouse[i][j] = fb[(mouse->y+i)][(mouse->x+j)]; 
-          fb[(mouse->y+i)][(mouse->x+j)] = WHITE;
         }
       }
+      draw_mouse(fb,mouse);
     }
 }

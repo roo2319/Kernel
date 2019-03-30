@@ -99,6 +99,13 @@ void conway_mouse_glider(){
 
 }
 
+void conway_from_mouse(int x, int y, bool draw){
+    char col = x/8;
+    char row = y/6;
+    grid[row][col] = (int) draw;
+    update_display();
+}
+
 void conway_start(){
 
     while(true){

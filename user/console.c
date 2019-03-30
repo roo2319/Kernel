@@ -116,6 +116,24 @@ void* conway_load( char* x){
  *    terminate 3
  *
  *    would terminate the process whose PID is 3.
+ * 
+ * c. nice <process ID> <priority>
+ *    
+ *    change the priority of process <proccess ID> to <priority>
+ * 
+ * d. ps
+ * 
+ *    draw the process tree
+ * 
+ * e. conway (start|line|glider|reset|mouse_glider)
+ * 
+ *    start: Begin running conways game of life
+ * 
+ *    line: Create a horizontal line along the center row without edge cells
+ * 
+ *    glider: Create a glider in the top left
+ * 
+ *    mouse_glider: Create a glider around where the mouse cursor is positioned
  */
 
 void main_console() {
