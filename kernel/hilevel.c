@@ -9,7 +9,7 @@
 
 //Access as fb[r][c]
 char procs = 1; pcb_t pcb[ 100 ]; pcb_t* current = NULL;char nextpid = 2; uint16_t fb[ 600 ][ 800 ]; coord_t mouse;
-coord_t cursor;
+coord_t cursor; int randomnumber = 35281;
 
 void itoa_k( char* r, int x ) {
   char* p = r; int t, n;
@@ -49,6 +49,10 @@ void print(PL011_t* uart, char* s){
 }
 
 
+
+/*It's not as bad as it sounds!
+* Recursively kill the children of a parent process
+*/
 void kill_children(pid_t parent){
   pid_t child_pid;
   char out[2];
@@ -62,9 +66,10 @@ void kill_children(pid_t parent){
       itoa_k(out, child_pid);
 
       //Kill the child itself (Similar implementation to kill)
-      for (int i = 0; i<procs; i++){
-        if (pcb[i].pid == child_pid && i != (procs - 1)){
-          memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
+      //Note that we are iterating again as we can't guarantee pcb state
+      for (int j = 0; j<procs; j++){
+        if (pcb[j].pid == child_pid && j != (procs - 1)){
+          memcpy(&pcb[j],&pcb[procs-1],sizeof(pcb_t));
           memset(&pcb[procs-1],0,sizeof(pcb_t));
           procs--;
           print(UART1,"\nTerminated process ");
@@ -72,7 +77,7 @@ void kill_children(pid_t parent){
           PL011_putc(UART1,'\n',true);
         }
 
-        else if (pcb[i].pid == child_pid){
+        else if (pcb[j].pid == child_pid){
           memset(&pcb[procs-1],0,sizeof(pcb_t));
           procs--;
           print(UART1, "\nTerminated process ");
@@ -80,12 +85,15 @@ void kill_children(pid_t parent){
           PL011_putc(UART1,'\n',true);
           }
       }
+      //Reset iterator, PCB state is not guarunteed anymore
       i = 0;
     }
   }
 
 }
 
+//Recursively draw the children of a process
+//Necessary for process tree
 void draw_children(pid_t parent,char depth){
   pid_t child_pid;
   char out[2];
@@ -99,8 +107,7 @@ void draw_children(pid_t parent,char depth){
       itoa_k(out, child_pid);
       print(UART1,out);
       PL011_putc(UART1,'\n',true);
-      //Store the pid of the child
-      //Kill the childs children
+      //Draw the childs children
       draw_children(child_pid,depth+1);
     }
   }
@@ -121,6 +128,7 @@ void dispatch( ctx_t* ctx, pcb_t* prev, pcb_t* next ) {
   return;
 }
 
+//A priority + age based scheduler.
 void schedule( ctx_t* ctx ) {
 
   char max = 0;
@@ -135,6 +143,7 @@ void schedule( ctx_t* ctx ) {
       maxi = i;
     }
   }
+  //Increments the age of idle processess
   for (int i = 0; i<procs; i++){
     if (i != maxi){
       pcb[i].age++;
@@ -210,7 +219,7 @@ void hilevel_handler_rst(ctx_t* ctx) {
 
   memset( &pcb[ 0 ], 0, sizeof( pcb_t ) );     // initialise Console
   pcb[ 0 ].pid      = 1;
-  pcb[ 0 ].parent   = -1;
+  pcb[ 0 ].parent   = -1;                      // Parent will never be called, so given dummy value
   pcb[ 0 ].status   = STATUS_CREATED;
   pcb[ 0 ].ctx.cpsr = 0x50;
   pcb[ 0 ].ctx.pc   = ( uint32_t )( &main_console );
@@ -303,59 +312,78 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     }
 
     case 0x03 : { //0x03 => Fork()
-      //realloc(pcb,sizeof(pcb_t) * procs);
-      memset( &pcb[ procs ], 0, sizeof( pcb_t ) );   
+
+      //If there is no space left in the procs table, return fail
+      if (procs == 100){
+        ctx->gpr[0] = -1;
+      }
+      
+      //There is no need to initialise pcb to 0, as all fields will be set.
+      //Initialise a copy of the parent process
       pcb[ procs ].pid      = nextpid;
       pcb[ procs ].parent   = current->pid;
       pcb[ procs ].status   = STATUS_CREATED;
       pcb[ procs ].priority = current->priority;
       pcb[ procs ].age      = current->age;
       memcpy(&pcb[procs].ctx,ctx,sizeof(ctx_t));
+      
+      //The TOS is allocated based on the pid
+      //After 1000 pids, we will not be able to allocate more stack space.
+      //This is a limitation of this kernel, but could be improved by "recycling" stack space.
       pcb[ procs ].tos      = (uint32_t) (&tos_console - (nextpid * 0x10000));
       pcb[ procs ].ctx.sp   = current->ctx.sp - (nextpid * 0x10000);
-      memcpy((void*) pcb[procs].ctx.sp,(void *) current->ctx.sp,current->tos - current->ctx.sp);
+
+      //Copy the stack contents from parent to the child
+      memcpy((void*) pcb[procs].ctx.sp,(void *) ctx->sp,current->tos - ctx->sp);
       pcb[ procs ].ctx.gpr[0] = 0;
 
+      //Return value is childs pid
+      ctx->gpr[0] = nextpid;
+      
       //Increment nextpid and size of procs table
       nextpid++;
       procs++; 
 
-      ctx->gpr[0] = nextpid-1;
+      
       break;
     }
 
     case 0x04 : { //0x04 => Exit()
       pid_t pid = current->pid;
+      char out[2];
       char code[3]; 
       itoa_k(code,ctx->gpr[0]);
+      itoa_k(out,pid);
       for (int i = 0; i<procs; i++){
+
         //PCB in middle, swap
         if ((pcb[i].pid == pid) && (i != (procs - 1))){
           memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
-          memset(&pcb[procs-1],0,sizeof(pcb_t));
           procs--;
           break;
         }
 
         //Last case, Decrement procs count only
         else if (pcb[i].pid == pid){
-          memset(&pcb[procs-1],0,sizeof(pcb_t));
           procs--;
           break;
         }
-        
       }
+
+      //Special exit code, signalling a NULL pointer passed to exec
       if (ctx->gpr[0] == 255){
         print(UART1,"Failed to start program");
         dispatch(ctx,NULL,&pcb[0]);
         //Create command prompt again, as it will be overwritten.
-        //There is definitely a bug in the previously entered characters will stay
-        //It's a design tradeoff
         print(UART1,"\nshell$ ");
         int_enable_irq();
         return;
       }
-      print(UART1, "\nExited with exit code ");
+
+      //After everything we can print the exit code to console
+      print(UART1, "\nProcess ");
+      print(UART1, out);
+      print(UART1, " Exited with exit code ");
       print(UART1, code);
       print(UART1,"\nshell$ ");
       dispatch(ctx, NULL, &pcb[0]);
@@ -363,10 +391,11 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     }
        
 
+    //Replace the lr to the address, and move stack pointer to tos, as old context is no longer needed
     case 0x05 : { //0x05 => Exec(Const void* x)
       if (ctx->gpr[0] != (uint32_t) NULL){
         ctx->lr = (uint32_t)(ctx->gpr[0]);
-        ctx->sp = current->tos;
+        ctx->sp = current->tos; 
         return;
         }
       else{
@@ -376,6 +405,8 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     }
 
 
+    //Recursively kills the process with process id pid.
+    //Does not use signal, as I have no mechanism to signal soft kill.
     case 0x06 : { //0x06 => Kill(pid, id)
       char out[2];
       pid_t pid = (pid_t) ctx->gpr[0];
@@ -384,10 +415,9 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
 
       //Kill children first
       kill_children(pid);
+
       //Functionality to terminate the console
       if (pid == 1){
-        memcpy(&pcb[0],&pcb[procs-1],sizeof(pcb_t));
-        memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
         print(UART1, "\nTerminated Console\n");
         //Trap, Execution cannot continue
@@ -398,7 +428,6 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     for (int i = 0; i<procs; i++){
       if ((pcb[i].pid == pid) && (i != (procs - 1))){
         memcpy(&pcb[i],&pcb[procs-1],sizeof(pcb_t));
-        memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
         print(UART1,"\nTerminated process ");
         print(UART1, out);
@@ -406,9 +435,9 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         int_enable_irq();
         return;
       }
-      //Unless the proc being deleted is the last proc, in which case just clear it.
+
+      //Unless the proc being deleted is the last proc, in which case just shorten PCB
       else if (pcb[i].pid == pid){
-        memset(&pcb[procs-1],0,sizeof(pcb_t));
         procs--;
         print(UART1, "\nTerminated process ");
         print(UART1, out);
@@ -416,16 +445,23 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         int_enable_irq(); 
         return;}
     }
-    print(UART1,"No process was terminated");
+
+    //If we fall through to here, nothing has been terminated
+    print(UART1,"No process was terminated\n");
       break;
     }
 
-
+    //Change the priority of pid to x
     case 0x07 : { //0x07 => Nice(pid, x)
+
       for (int i = 0; i<procs; i++){
         if (pcb[i].pid == ctx->gpr[0]){
+          char out[2];
+          itoa_k(out,ctx->gpr[0]);
           pcb[i].priority=ctx->gpr[1];
-          print(UART1,"Successfully changed priority of process\n");
+          print(UART1,"Successfully changed priority of process ");
+          print(UART1,out);
+          PL011_putc(UART1,'\n',true);
           int_enable_irq();
           return;
         }
@@ -435,11 +471,13 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
     }
 
     case 0x08 : { //0x08 => ps(), Draw process tree
-      print(UART1,"1\n");
+      print(UART1,"1\n"); 
       draw_children(1,1);
       break;
     }
 
+
+    //Allows a program to write text to the screen
     case 0x09 : { //0x09 => display_put(x)
       char* string = (char*) ctx->gpr[0];
       int n        = ctx->gpr[1];
@@ -447,6 +485,7 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       int x;
       for( int i = 0; i < n; i++ ) {
         x = string[i];
+
         if (x == '\0'){
           break;
         }
@@ -465,6 +504,8 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         else if (x == ' '){
           draw_char(fb,&cursor,29,colour);
         }
+        
+        //Deal with alphabetical cases
         else if (x - 'A' < 26){
           draw_char(fb,&cursor,x-'A',colour);
         }
@@ -488,6 +529,13 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
 
     case 0x0C: {//0x0B get_mouse_y()
       ctx->gpr[0] = mouse.y;
+      break;
+    }
+
+    //LCG implemented in kernel. 
+    case 0x0D: {
+      randomnumber = ((1103515245 * randomnumber + 12345) % (1<<31));
+      ctx->gpr[0] = randomnumber;
       break;
     }
 

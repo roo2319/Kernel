@@ -1,9 +1,9 @@
 #include "P6.h"
 
 int forks[16];
-int randomnumber = 2986;
 int me = 1;
 
+//Wait for MutualExclusivity then take both forks
 void pickup(int left,int right){
   sem_wait(&me);
   sem_wait(&(forks[left]));
@@ -11,6 +11,7 @@ void pickup(int left,int right){
   sem_post(&me);
 }
 
+//ME is not required for put down
 void putdown(int left,int right){
   sem_post(&forks[left]);
   sem_post(&forks[right]);
@@ -27,8 +28,7 @@ void child(int id){
     write(STDOUT_FILENO,phil,2);
     write(STDOUT_FILENO," thinks\n",8);
     //Think for a random amount of time
-    randomnumber = LCG(randomnumber);
-    sleep((randomnumber%6)+2);
+    sleep((get_random()%3)+2);
     write(STDOUT_FILENO,"Philosopher ",12);
     write(STDOUT_FILENO,phil,2);
     write(STDOUT_FILENO," is hungry\n",12);
@@ -40,8 +40,7 @@ void child(int id){
     write(STDOUT_FILENO," eats\n",6);
     write(STDOUT_FILENO,"---------\n",10);
     //Eat for a random amount of time
-    randomnumber = LCG(randomnumber);
-    sleep((randomnumber%6)+2);
+    sleep((get_random()%3)+2);
     //Put down their forks (does not require mutex)
     putdown(left,right);
     write(STDOUT_FILENO,"Philosopher ",12);

@@ -9,10 +9,6 @@ char grid_ghost[IMHT+2][IMWD]={{}};
 //Mutex used for access to the conway grid
 char access = 1;
 
-/*
-program that will take in a rectangular slice of conways and process it
-assuming the top and bottom rows are 'ghost rows' and the screen loops
-*/
 
 //returns x mod y, supporting values from -y to +MAX_INT
 int mod(int x, int y){
@@ -22,6 +18,7 @@ int mod(int x, int y){
 
 //Draws the state of conways to the display. 
 //The current size is 8px * 6 px  cells, 100*100 for fb
+//Limitation is that it writes over the entire screen, so previous fb is lost
 void update_display(){
     for (int i = 0; i < IMHT; i++){
         for (int j = 0; j < IMWD; j++){
@@ -57,14 +54,12 @@ void conway(char out[IMHT][IMWD] , char in[IMHT+2][IMWD]){
 //Sets all cells to zero then updates display
 //Used by IRQ on keypress "1"
 void conway_reset(){
-    sem_wait(&access);
     for (int i = 0; i<IMHT; i++){
         for (int j = 0; j<IMWD;j++){
             grid[i][j] = 0;
         }
     }
     update_display();
-    sem_post(&access);
 }
 
 //Create a glider in the top right
@@ -128,6 +123,9 @@ void conway_start(){
         memcpy(grid_ghost[IMHT+1],grid[0],sizeof(grid[0]));
         conway(grid,grid_ghost);
         sem_post(&access);
+
+        //Only allow one iteration per time slice.
+        //If more are desired, use nice to increase priority
         yield();
     }
 }

@@ -66,6 +66,7 @@ void* load( char* x ) {
   return NULL;
 }
 
+//Similar to load, but functions only work for conway
 void* conway_load( char* x){
   if ( 0 == strcmp(x, "start")){
     return &conway_start;
@@ -152,15 +153,21 @@ void main_console() {
 
       kill( pid, s );
     } 
+
+    //Nice
     else if( 0 == strcmp( p, "nice" ) ) {
       pid_t pid = atoi( strtok( NULL, " " ) );
       int   x   = atoi( strtok( NULL, " " ) );
 
       nice( pid, x );
     } 
+
+    //Process tree
     else if(0 == strcmp(p, "ps")){
       ps();
     }
+
+    //Functions for conways game of life
     else if     ( 0 == strcmp( p, "conway"   ) ) {
       pid_t pid = fork();
 

@@ -391,10 +391,11 @@ void handle_keyboard(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse){
 void handle_mouse_move(uint16_t fb[600][800], coord_t* mouse){
     mouse_packet[mouse_packet_no] = PL050_getc( PS21 );
     mouse_packet_no++;
+
+    //Only parse once 3 packets have been recieved, as they come in 3's
     if (mouse_packet_no == 3){
 
       //To decide if we can replace with undermouse buffer we must determine if the mouse has changed.
-      //FIX::::::: RIGHT EDGE CASE, CHECK I J VAL
       has_mouse_changed = false;
       for (int i = 0; i<7 && mouse->y + i < 600; i++){
         for (int j = 0; j<8 && mouse->x + j < 800; j++){
@@ -403,6 +404,7 @@ void handle_mouse_move(uint16_t fb[600][800], coord_t* mouse){
           }
         }
       }
+
       //If the mouse has not changed, then we can safely replace with the under mouse buffer
       if (!has_mouse_changed){
         remove_mouse(fb,mouse);
@@ -416,6 +418,7 @@ void handle_mouse_move(uint16_t fb[600][800], coord_t* mouse){
       else if((mouse->x + mouse_packet[1] - ((mouse_packet[0] << 4) & 0x100)) < 0){
         mouse->x = 0;
       }
+      //Otherwise parse as normal
       else{
         mouse->x =  (mouse->x + mouse_packet[1] - ((mouse_packet[0] << 4) & 0x100));
       }
@@ -428,15 +431,23 @@ void handle_mouse_move(uint16_t fb[600][800], coord_t* mouse){
       else if((mouse->y - (mouse_packet[2] - ((mouse_packet[0] << 3) & 0x100))) < 0){
         mouse->y = 0;
       }
+      //Same here
       else{
         mouse->y =  (mouse->y - (mouse_packet[2] - ((mouse_packet[0] << 3) & 0x100))+600)%600;
       }
+
+      //We will check for clicks and feed the data to conway
+      
+      //LMB
       if ((mouse_packet[0] & 1) == 1){
         conway_from_mouse(mouse->x,mouse->y,true);
       }
+      //RMB
       else if ((mouse_packet[0] & (1<<1)) == 2){
         conway_from_mouse(mouse->x,mouse->y,false);
       }
+
+      //0 the count, refill undermouse, and redraw the mouse
       mouse_packet_no = 0;
       for (int i = 0; i<7 && mouse->y + i < 600; i++){
         for (int j = 0; j<8 && mouse->x + j < 800; j++){

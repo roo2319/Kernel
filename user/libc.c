@@ -186,7 +186,7 @@ void draw_rect( int x, int y, int xlen, int ylen, int colour) {
 int  get_mouse_x() {
   int r;
 
-  asm volatile( "svc %1     \n" // make system call SYS_GET_MOUSE_POS
+  asm volatile( "svc %1     \n" // make system call SYS_GET_MOUSE_X
                 "mov %0, r0 \n" // assign r  = r0 
               : "=r" (r) 
               : "I" (SYS_GET_MOUSE_X)
@@ -198,7 +198,7 @@ int  get_mouse_x() {
 int  get_mouse_y() {
   int r;
 
-  asm volatile( "svc %1     \n" // make system call SYS_GET_MOUSE_POS
+  asm volatile( "svc %1     \n" // make system call SYS_GET_MOUSE_Y
                 "mov %0, r0 \n" // assign r  = r0 
               : "=r" (r) 
               : "I" (SYS_GET_MOUSE_Y)
@@ -206,6 +206,19 @@ int  get_mouse_y() {
 
   return r;
 }
+
+int  get_random() {
+  int r;
+
+  asm volatile( "svc %1     \n" // make system call SYS_GET_RANDOM
+                "mov %0, r0 \n" // assign r  = r0 
+              : "=r" (r) 
+              : "I" (SYS_GET_RANDOM)
+              : "r0" );
+
+  return r;
+}
+
 
 
 void sem_post(void* sem){
@@ -234,8 +247,4 @@ void sleep(int seconds){
    for( int i = 0; i < (seconds * 0x10000000); i++ ) {
         asm volatile( "nop" );
       }
-}
-
-int LCG(int seed){
-  return ((1103515245 * seed + 12345) % (1<<31));
 }
