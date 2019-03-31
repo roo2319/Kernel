@@ -76,9 +76,6 @@ void* conway_load( char* x){
   else if ( 0 == strcmp(x, "glider")){
     return &conway_glider;
   }
-  else if ( 0 == strcmp(x, "reset")){
-    return &conway_reset;
-  }
   else if ( 0 == strcmp(x, "mouse_glider")){
     return &conway_mouse_glider;
   }

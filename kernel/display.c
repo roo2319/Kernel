@@ -2,8 +2,11 @@
 
 int mouse_packet[3];int mouse_packet_no = 0; uint16_t undermouse[7][8]; uint16_t undercursor[10]; bool released = false;
 bool has_mouse_changed;
-extern void conway_from_mouse(int x, int y, bool draw);
 
+extern void conway_from_mouse(int x, int y, bool draw);
+extern void conway_reset();
+
+//Design of the mouse, expressed as pixels. Easy to change.
 int mouse_design[7] ={
   0b11111000,
   0b11111000,
@@ -14,6 +17,8 @@ int mouse_design[7] ={
   0b00000010,
 };
 
+
+//Bit packed font for rendering characters
 int const Font[31][7] = { 
    {0x04, 0x0a, 0x11, 0x11, 0x1f, 0x11, 0x11},   //A
    {0x1e, 0x11, 0x11, 0x1e, 0x11, 0x11, 0x1e},   //B
@@ -49,21 +54,14 @@ int const Font[31][7] = {
    }; 
 
 
-void print(PL011_t* uart, char* s){
-  char ind = 0;
-  char c = s[0];
-  while (c != '\0'){
-    PL011_putc(uart,c,true);
-    ind++;
-    c=s[ind];
-  }
-}
+//Replace the cursor with the undercursor array
 void remove_cursor(uint16_t fb[600][800], coord_t* cursor){
   for( int i = 0; i<7; i++){
     fb[cursor->y+i][cursor->x] = undercursor[i];
   }
 }
 
+//Draw cursor and update undercursor array
 void draw_cursor(uint16_t fb[600][800], coord_t* cursor){
   for( int i = 0; i<7; i++){
     undercursor[i] = fb[cursor->y+i][cursor->x];
@@ -71,6 +69,7 @@ void draw_cursor(uint16_t fb[600][800], coord_t* cursor){
   }
 }
 
+//Self explanatory
 void move_cursor(uint16_t fb[600][800], coord_t* cursor, int x, int y){
   remove_cursor(fb,cursor);
   cursor->x = x;
@@ -79,6 +78,7 @@ void move_cursor(uint16_t fb[600][800], coord_t* cursor, int x, int y){
 
 }
 
+//Move mouse and cursor to 0,0. Set screen to black. Reset conway.
 void init_display(uint16_t fb[600][800],coord_t* mouse,coord_t* cursor){
 
   mouse->x = 0;
@@ -97,9 +97,12 @@ void init_display(uint16_t fb[600][800],coord_t* mouse,coord_t* cursor){
       undermouse[ i ][ j ] = fb[i][j];
     }
   }
+  conway_reset();
+  
   return;
 }
 
+//Draw rectangle at x,y of dimensions xlen, ylen
 void draw_rectangle(uint16_t fb[600][800],int x, int y, int xlen, int ylen, int colour){
   for (int i = 0; i<xlen;i++){
     for (int j = 0;j<ylen;j++){
@@ -108,6 +111,7 @@ void draw_rectangle(uint16_t fb[600][800],int x, int y, int xlen, int ylen, int 
   }
 }
 
+//Write a character to the cursor location and then move it.
 //Well defined for A-Z and . , '
 void draw_char(uint16_t fb[600][800], coord_t* cursor,char character,int colour){
     remove_cursor(fb,cursor);
@@ -130,15 +134,26 @@ void draw_char(uint16_t fb[600][800], coord_t* cursor,char character,int colour)
     draw_cursor(fb,cursor);
 }
 
+//Remove the mouse from the display by replacing with buffer
+void remove_mouse(uint16_t fb[600][800],coord_t* mouse){
+  for (int i = 0; i<7 && mouse->y + i < 600; i++){
+          for (int j = 0; j<8 && mouse->x + j < 800; j++){
+            fb[(mouse->y+i)][(mouse->x+j)] = undermouse[i][j];
+          }
+        }
+}
+
+//Redner the mouse to the screen, treating 1 as white and 2 as transparent
+//Although line 3 looks horrible, it is just bit unpacking and a ternary operator
 void draw_mouse(uint16_t fb[600][800], coord_t* mouse){
-  for( int i = 0; i < 7; i++ ) {
-      for( int j = 0; j < 8; j++ ) {
-          fb[ mouse->y + i ][mouse->x + j ] = ((mouse_design[i] & (1<<(7-j)))>>(7-j)) * WHITE;
+  for( int i = 0; i < 7 && mouse->y + i < 600; i++ ) {
+      for( int j = 0; j < 8 && mouse->x + j < 800; j++ ) {
+          fb[ mouse->y + i ][mouse->x + j ] = ((mouse_design[i] & (1<<(7-j)))>>(7-j))==1?WHITE:fb[mouse->y +i][mouse->x+j];
       }
   }
 }
 
-
+//Works as backspace, replaces 7x8 region behind cursor with black
 void remove_char(uint16_t fb[600][800], coord_t* cursor){
     for( int i = 0; i < 7; i++ ) {
               for( int j = 0; j < 8; j++ ) {
@@ -148,6 +163,7 @@ void remove_char(uint16_t fb[600][800], coord_t* cursor){
           draw_cursor(fb,cursor);
 }
 
+//Moves cursor down, unless on bottom line
 void handle_newline(uint16_t fb[600][800], coord_t* cursor){
   if (cursor->y + 14 < 600){
     remove_cursor(fb,cursor);
@@ -158,7 +174,15 @@ void handle_newline(uint16_t fb[600][800], coord_t* cursor){
 
 }
 
-
+/*Big case statement to handle scan codes. 
+*Key functionality is:
+* For A-Z and .,' print to display
+* For space print a black box and move cursor
+* For backspace, remove the previous character, handling newlines
+* For enter go down a line
+* For 1 reset the screen
+* For 2 print a test character, to test for screen issues
+*/
 void handle_scancode(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse, uint8_t x){
   if (!released){
     switch (x)
@@ -357,33 +381,32 @@ void handle_scancode(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse, uin
   } 
 }
 
+//Function exposed to hilevel.c
 void handle_keyboard(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse){
     uint8_t x = PL050_getc( PS20 ); 
     handle_scancode(fb, cursor, mouse, x);
 }
 
+//Function exposed to hilevel.c
 void handle_mouse_move(uint16_t fb[600][800], coord_t* mouse){
     mouse_packet[mouse_packet_no] = PL050_getc( PS21 );
     mouse_packet_no++;
     if (mouse_packet_no == 3){
 
       //To decide if we can replace with undermouse buffer we must determine if the mouse has changed.
-
+      //FIX::::::: RIGHT EDGE CASE, CHECK I J VAL
       has_mouse_changed = false;
       for (int i = 0; i<7 && mouse->y + i < 600; i++){
         for (int j = 0; j<8 && mouse->x + j < 800; j++){
-          if (fb[(mouse->y+i)][(mouse->x+j)] != ((mouse_design[i] & (1<<(7-j)))>>(7-j)) * WHITE){
+          if ((((mouse_design[i] & (1<<(7-j)))>>(7-j)) == WHITE) && (fb[(mouse->y+i)][(mouse->x+j)] != ((mouse_design[i] & (1<<(7-j)))>>(7-j)) * WHITE)){
             has_mouse_changed = true;
           }
         }
       }
       //If the mouse has not changed, then we can safely replace with the under mouse buffer
       if (!has_mouse_changed){
-        for (int i = 0; i<7 && mouse->y + i < 600; i++){
-          for (int j = 0; j<8 && mouse->x + j < 800; j++){
-            fb[(mouse->y+i)][(mouse->x+j)] = undermouse[i][j];
-          }
-        }
+        remove_mouse(fb,mouse);
+        
       }
       //Setup right wall
       if ((mouse->x + mouse_packet[1] - ((mouse_packet[0] << 4) & 0x100)) >= 800){

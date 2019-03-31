@@ -37,6 +37,16 @@ void itoa_k( char* r, int x ) {
   return;
 }
 
+//Helper function to print to uart
+void print(PL011_t* uart, char* s){
+  char ind = 0;
+  char c = s[0];
+  while (c != '\0'){
+    PL011_putc(uart,c,true);
+    ind++;
+    c=s[ind];
+  }
+}
 
 
 void kill_children(pid_t parent){
