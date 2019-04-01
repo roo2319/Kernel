@@ -5,7 +5,7 @@ bool has_mouse_changed;
 
 
 //0 for lab machine, 1 for my laptop.
-int scancode_no = 0;
+int scancode_no = 1;
 
 extern void conway_from_mouse(int x, int y, bool draw);
 extern void conway_reset();

@@ -11,6 +11,38 @@
 char procs = 1; pcb_t pcb[ 100 ]; pcb_t* current = NULL;char nextpid = 2; uint16_t fb[ 600 ][ 800 ]; coord_t mouse;
 coord_t cursor; int randomnumber = 35281;
 
+//Convert character to be readable by font
+char to_qwerty(char x){
+  switch(x){
+    case 0 : return 10; //A
+    case 1 : return 23; //B
+    case 2 : return 21; //C
+    case 3 : return 12; //D
+    case 4 : return 0 ; //E
+    case 5 : return 13; //F
+    case 6 : return 14; //G
+    case 7 : return 15; //H
+    case 8 : return 7 ; //I
+    case 9 : return 16; //J
+    case 10: return 17; //K
+    case 11: return 18; //L
+    case 12: return 25; //M
+    case 13: return 24; //N
+    case 14: return  8; //O
+    case 15: return  9; //P
+    case 16: return  0; //Q
+    case 17: return  3; //R
+    case 18: return 11; //S
+    case 19: return  4; //T
+    case 20: return  6; //U
+    case 21: return 22; //V
+    case 22: return  2; //W
+    case 23: return 20; //X
+    case 24: return  5; //Y
+    case 25: return 19; //Z
+  }
+}
+
 void itoa_k( char* r, int x ) {
   char* p = r; int t, n;
 
@@ -492,10 +524,10 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         else if (x == '\n'){
           handle_newline(fb,&cursor);
         }
-        else if (x == '.'){
+        else if (x == ','){
           draw_char(fb,&cursor,26,colour);
         }
-        else if (x == ','){
+        else if (x == '.'){
           draw_char(fb,&cursor,27,colour);
         }
         else if (x == '\''){
@@ -507,10 +539,10 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         
         //Deal with alphabetical cases
         else if (x - 'A' < 26){
-          draw_char(fb,&cursor,x-'A',colour);
+          draw_char(fb,&cursor,to_qwerty(x-'A'),colour);
         }
         else if ((x - 'a') <26){
-          draw_char(fb,&cursor,x-'a',colour);
+          draw_char(fb,&cursor,to_qwerty(x-'a'),colour);
         }
       }
       break;
