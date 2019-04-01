@@ -40,6 +40,7 @@ char to_qwerty(char x){
     case 23: return 20; //X
     case 24: return  5; //Y
     case 25: return 19; //Z
+    default: return -1;
   }
 }
 
