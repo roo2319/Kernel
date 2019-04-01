@@ -231,6 +231,7 @@ void handle_scancode(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse, uin
         if (x == 0xF0){
           released = true;
           return;
+        }
       }
 
       //Spacebar
@@ -281,14 +282,8 @@ void handle_scancode(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse, uin
           }
         }
       }
-
-    
-
     }
-      
-  }
-  else
-  {
+  else{
     released = false;
   } 
 }
