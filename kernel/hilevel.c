@@ -18,7 +18,7 @@ char to_qwerty(char x){
     case 1 : return 23; //B
     case 2 : return 21; //C
     case 3 : return 12; //D
-    case 4 : return 0 ; //E
+    case 4 : return  2; //E
     case 5 : return 13; //F
     case 6 : return 14; //G
     case 7 : return 15; //H
@@ -36,7 +36,7 @@ char to_qwerty(char x){
     case 19: return  4; //T
     case 20: return  6; //U
     case 21: return 22; //V
-    case 22: return  2; //W
+    case 22: return  1; //W
     case 23: return 20; //X
     case 24: return  5; //Y
     case 25: return 19; //Z
