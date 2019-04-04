@@ -37,13 +37,6 @@ void gets( char* x, int n ) {
 extern void main_P3(); 
 extern void main_P4(); 
 extern void main_P5(); 
-extern void main_P6();
-extern void main_P7();
-extern void conway_start();
-extern void conway_line();
-extern void conway_glider();
-extern void conway_reset();
-extern void conway_mouse_glider();
 
 void* load( char* x ) {
   if     ( 0 == strcmp( x, "P3" ) ) {
@@ -54,31 +47,6 @@ void* load( char* x ) {
   }
   else if( 0 == strcmp( x, "P5" ) ) {
     return &main_P5;
-  }
-  else if( 0 == strcmp(x,"P6")){
-    return &main_P6;
-  }
-  else if( 0 == strcmp(x, "P7")){
-    return &main_P7;
-  }
-
-
-  return NULL;
-}
-
-//Similar to load, but functions only work for conway
-void* conway_load( char* x){
-  if ( 0 == strcmp(x, "start")){
-    return &conway_start;
-  }
-  else if ( 0 == strcmp(x, "line")){
-    return &conway_line;
-  }
-  else if ( 0 == strcmp(x, "glider")){
-    return &conway_glider;
-  }
-  else if ( 0 == strcmp(x, "mouse_glider")){
-    return &conway_mouse_glider;
   }
 
   return NULL;
@@ -114,24 +82,6 @@ void* conway_load( char* x){
  *    terminate 3
  *
  *    would terminate the process whose PID is 3.
- * 
- * c. nice <process ID> <priority>
- *    
- *    change the priority of process <proccess ID> to <priority>
- * 
- * d. ps
- * 
- *    draw the process tree
- * 
- * e. conway (start|line|glider|reset|mouse_glider)
- * 
- *    start: Begin running conways game of life
- * 
- *    line: Create a horizontal line along the center row without edge cells
- * 
- *    glider: Create a glider in the top left
- * 
- *    mouse_glider: Create a glider around where the mouse cursor is positioned
  */
 
 void main_console() {
@@ -152,28 +102,6 @@ void main_console() {
       int   s   = atoi( strtok( NULL, " " ) );
 
       kill( pid, s );
-    } 
-
-    //Nice
-    else if( 0 == strcmp( p, "nice" ) ) {
-      pid_t pid = atoi( strtok( NULL, " " ) );
-      int   x   = atoi( strtok( NULL, " " ) );
-
-      nice( pid, x );
-    } 
-
-    //Process tree
-    else if(0 == strcmp(p, "ps")){
-      ps();
-    }
-
-    //Functions for conways game of life
-    else if     ( 0 == strcmp( p, "conway"   ) ) {
-      pid_t pid = fork();
-
-      if( 0 == pid ) {
-        exec( conway_load( strtok( NULL, " " ) ) );
-      }
     } 
     else {
       puts( "unknown command\n", 16 );

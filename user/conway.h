@@ -5,8 +5,8 @@
  * LICENSE.txt within the associated archive or repository).
  */
 
-#ifndef __P8_H
-#define __P8_H
+#ifndef __conway_H
+#define __conway_H
 
 #include <stdbool.h>
 #include <stddef.h>

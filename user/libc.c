@@ -207,7 +207,7 @@ int  get_mouse_y() {
   return r;
 }
 
-int  get_random() {
+unsigned int  get_random() {
   int r;
 
   asm volatile( "svc %1     \n" // make system call SYS_GET_RANDOM
@@ -243,7 +243,7 @@ void sem_wait(void* sem){
   return;
 }
 
-void sleep(int seconds){
+void sleep(unsigned int seconds){
    for( int i = 0; i < (seconds * 0x10000000); i++ ) {
         asm volatile( "nop" );
       }

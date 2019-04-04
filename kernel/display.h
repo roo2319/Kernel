@@ -1,3 +1,7 @@
+#ifndef __display_H
+#define __display_H
+
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -30,3 +34,4 @@ extern void draw_char(uint16_t fb[600][800],coord_t* cursor, char character, int
 extern void handle_newline(uint16_t fb[600][800],coord_t* cursor); 
 extern void handle_keyboard(uint16_t fb[600][800], coord_t* cursor, coord_t* mouse);
 extern void handle_mouse_move(uint16_t fb[600][800], coord_t* mouse);
+#endif

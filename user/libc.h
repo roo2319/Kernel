@@ -97,8 +97,8 @@ extern int get_mouse_x();
 
 extern int get_mouse_y();
 
-//Get a pseudorandom number from kernel
-extern int get_random();
+//Get a pseudorandom number from kernel, num > 0
+extern unsigned int get_random();
 
 //Userland semaphore post
 extern void sem_post(void* sem);
@@ -107,7 +107,7 @@ extern void sem_post(void* sem);
 extern void sem_wait(void* sem);
 
 //Wait for int seconds in userland (does not count outside of timeslice)
-extern void sleep(int seconds);
+extern void sleep(unsigned int seconds);
 
 
 #endif

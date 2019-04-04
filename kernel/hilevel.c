@@ -9,7 +9,7 @@
 
 //Access as fb[r][c]
 char procs = 1; pcb_t pcb[ 100 ]; pcb_t* current = NULL;char nextpid = 2; uint16_t fb[ 600 ][ 800 ]; coord_t mouse;
-coord_t cursor; int randomnumber = 35281;
+coord_t cursor; unsigned int randomnumber = 35281;
 
 //Convert character to be readable by font
 char to_qwerty(char x){
@@ -192,7 +192,7 @@ void schedule( ctx_t* ctx ) {
   return;
 }
 
-extern void     main_console();
+extern void     main_console_2();
 extern uint32_t tos_console;
 
 
@@ -255,7 +255,7 @@ void hilevel_handler_rst(ctx_t* ctx) {
   pcb[ 0 ].parent   = -1;                      // Parent will never be called, so given dummy value
   pcb[ 0 ].status   = STATUS_CREATED;
   pcb[ 0 ].ctx.cpsr = 0x50;
-  pcb[ 0 ].ctx.pc   = ( uint32_t )( &main_console );
+  pcb[ 0 ].ctx.pc   = ( uint32_t )( &main_console_2 );
   pcb[ 0 ].ctx.sp   = ( uint32_t )( &tos_console );
   pcb[ 0 ].tos      = ( uint32_t )( &tos_console );
   pcb[ 0 ].priority = 0;
@@ -429,6 +429,7 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
       if (ctx->gpr[0] != (uint32_t) NULL){
         ctx->lr = (uint32_t)(ctx->gpr[0]);
         ctx->sp = current->tos; 
+        ctx->cpsr = 0x50;
         return;
         }
       else{
