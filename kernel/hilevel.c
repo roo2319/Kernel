@@ -430,7 +430,6 @@ void hilevel_handler_svc(ctx_t* ctx, uint32_t id) {
         ctx->lr = (uint32_t)(ctx->gpr[0]);
         ctx->sp = current->tos; 
         ctx->cpsr = 0x50;
-        return;
         }
       else{
         exit(255);
